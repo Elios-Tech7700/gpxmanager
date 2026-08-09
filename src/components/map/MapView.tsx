@@ -272,14 +272,17 @@ export function MapView({ onOpenSidebar }: { onOpenSidebar: () => void }) {
       <div className="relative flex-1">
         <div ref={containerRef} className="w-full h-full" />
 
-        <WindAnimation direction={wind?.direction ?? null} speed={wind?.speed ?? 0} theme={theme} />
+        {/* Ambient defaults (SW, 10 km/h) keep the wind streaks alive before any route
+            is loaded, so the empty map reads as a wind app rather than a blank canvas */}
+        <WindAnimation direction={wind?.direction ?? 225} speed={wind?.speed ?? 10} theme={theme} />
 
         <button
           onClick={onOpenSidebar}
           title="Ouvrir le menu"
-          className="md:hidden absolute top-3 left-3 z-10 w-9 h-9 flex items-center justify-center rounded bg-[var(--color-surface-1)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] shadow"
+          className="md:hidden absolute top-3 left-3 z-10 h-11 pl-3 pr-4 flex items-center gap-2 rounded-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white shadow-lg shadow-[var(--color-accent)]/40"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M3 12h18M3 18h18" strokeLinecap="round" /></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><path d="M3 6h18M3 12h18M3 18h18" strokeLinecap="round" /></svg>
+          <span className="text-sm font-semibold">Menu</span>
         </button>
 
         <button
@@ -305,9 +308,21 @@ export function MapView({ onOpenSidebar }: { onOpenSidebar: () => void }) {
         )}
 
         {!activity && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="bg-[var(--color-surface-2)]/80 backdrop-blur-sm rounded-xl px-6 py-4 border border-[var(--color-border)] text-center">
-              <p className="text-sm text-[var(--color-text-secondary)]">Importe un fichier GPX pour commencer</p>
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-6">
+            <div className="pointer-events-auto bg-[var(--color-surface-2)]/90 backdrop-blur-sm rounded-2xl px-7 py-6 border border-[var(--color-border)] text-center max-w-xs shadow-lg">
+              <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-[var(--color-surface-1)] border border-[var(--color-border)] flex items-center justify-center">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-wind-calm)" strokeWidth="2"><path d="M3 12h11a3 3 0 1 0-2.4-4.8M3 17h15a3 3 0 1 1-2.4 4.8M3 7h7" strokeLinecap="round" /></svg>
+              </div>
+              <p className="text-base font-semibold text-[var(--color-text-primary)]">Prêt à sentir le vent ?</p>
+              <p className="text-sm text-[var(--color-text-secondary)] mt-1.5">
+                Importe un GPX ou connecte Strava — on te dira tout de suite si tu pars face au vent.
+              </p>
+              <button
+                onClick={onOpenSidebar}
+                className="mt-4 bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white rounded-full px-4 py-2 text-sm font-medium shadow"
+              >
+                Importer un parcours
+              </button>
             </div>
           </div>
         )}
