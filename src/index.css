@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+@theme {
+  --color-surface-0: #0a0a0f;
+  --color-surface-1: #111118;
+  --color-surface-2: #1a1a24;
+  --color-surface-3: #222230;
+  --color-border: #2a2a3a;
+  --color-text-primary: #f0f0f5;
+  --color-text-secondary: #8888a0;
+  --color-text-muted: #555568;
+  --color-accent: #6366f1;
+  --color-accent-hover: #818cf8;
+  --color-wind-calm: #22d3ee;
+  --color-wind-light: #86efac;
+  --color-wind-moderate: #fbbf24;
+  --color-wind-strong: #f87171;
+  --color-headwind: #f87171;
+  --color-tailwind: #86efac;
+  --color-crosswind-favorable: #bef264;
+  --color-crosswind-unfavorable: #fb923c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  height: 100dvh; /* mobile browsers resize the visual viewport as the address bar shows/hides */
+  margin: 0;
+  padding: 0;
+  background: var(--color-surface-0);
+  color: var(--color-text-primary);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.maplibregl-map {
+  font-family: inherit;
+}
+
+.maplibregl-ctrl-attrib {
+  font-size: 10px;
+  opacity: 0.5;
+}

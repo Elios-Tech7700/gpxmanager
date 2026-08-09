@@ -1,0 +1,210 @@
+import type { Activity, GpxPoint } from '@/types'
+
+function parseXml(text: string): Document {
+  const parser = new DOMParser()
+  return parser.parseFromString(text, 'application/xml')
+}
+
+function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000
+  const φ1 = (lat1 * Math.PI) / 180
+  const φ2 = (lat2 * Math.PI) / 180
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180
+  const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+function bearingBetween(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const φ1 = (lat1 * Math.PI) / 180
+  const φ2 = (lat2 * Math.PI) / 180
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180
+  const y = Math.sin(Δλ) * Math.cos(φ2)
+  const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ)
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360
+}
+
+export function generateId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+}
+
+interface RawPoint {
+  lat: number
+  lon: number
+  ele: number
+  time: Date
+}
+
+// Shared by any import source (GPX file, Strava streams, ...) once it has
+// reduced its own format down to a plain lat/lon/ele/time point list.
+export function buildActivity(rawPoints: RawPoint[], name: string, source: Activity['source']): Activity {
+  if (rawPoints.length === 0) throw new Error('Aucun point de tracé trouvé.')
+
+  // Compute bearings and speeds
+  const points: GpxPoint[] = rawPoints.map((p, i) => {
+    const next = rawPoints[i + 1]
+    const prev = rawPoints[i - 1]
+    const ref = next ?? prev
+    const bearing = ref ? bearingBetween(p.lat, p.lon, ref.lat, ref.lon) : 0
+
+    let speed = 0
+    if (prev) {
+      const dist = haversineDistance(prev.lat, prev.lon, p.lat, p.lon)
+      const dt = (p.time.getTime() - prev.time.getTime()) / 1000
+      speed = dt > 0 ? (dist / dt) * 3.6 : 0
+    }
+
+    return {
+      lat: p.lat,
+      lon: p.lon,
+      ele: p.ele,
+      time: p.time,
+      bearing,
+      speed,
+    }
+  })
+
+  // Stats
+  let distanceMeters = 0
+  let elevationGain = 0
+  for (let i = 1; i < points.length; i++) {
+    distanceMeters += haversineDistance(points[i - 1].lat, points[i - 1].lon, points[i].lat, points[i].lon)
+    const dEle = points[i].ele - points[i - 1].ele
+    if (dEle > 0) elevationGain += dEle
+  }
+
+  const startTime = points[0].time
+  const endTime = points[points.length - 1].time
+  const durationSeconds = (endTime.getTime() - startTime.getTime()) / 1000
+
+  const lats = points.map((p) => p.lat)
+  const lons = points.map((p) => p.lon)
+  const bounds: [number, number, number, number] = [
+    Math.min(...lons),
+    Math.min(...lats),
+    Math.max(...lons),
+    Math.max(...lats),
+  ]
+
+  return {
+    id: generateId(),
+    name,
+    source,
+    importedAt: new Date(),
+    startTime,
+    endTime,
+    durationSeconds,
+    distanceMeters,
+    elevationGain,
+    points,
+    windFetched: false,
+    bounds,
+    folderId: null,
+    shortlisted: false,
+  }
+}
+
+export function parseGpx(text: string, filename: string): Activity {
+  const doc = parseXml(text)
+
+  const name =
+    doc.querySelector('metadata > name')?.textContent?.trim() ||
+    doc.querySelector('trk > name')?.textContent?.trim() ||
+    filename.replace(/\.gpx$/i, '')
+
+  const trkpts = Array.from(doc.querySelectorAll('trkpt'))
+  if (trkpts.length === 0) throw new Error('Aucun point de tracé trouvé dans ce fichier GPX.')
+
+  const rawPoints = trkpts.map((pt) => {
+    const lat = parseFloat(pt.getAttribute('lat') ?? '0')
+    const lon = parseFloat(pt.getAttribute('lon') ?? '0')
+    const ele = parseFloat(pt.querySelector('ele')?.textContent ?? '0')
+    const timeStr = pt.querySelector('time')?.textContent ?? ''
+    const time = timeStr ? new Date(timeStr) : null
+    return { lat, lon, ele, time }
+  })
+
+  if (!rawPoints[0].time) throw new Error('Ce fichier GPX ne contient pas d\'horodatage — le calcul du vent n\'est pas possible.')
+
+  return buildActivity(rawPoints as RawPoint[], name, 'upload')
+}
+
+// Strava route GPX exports are planned paths, not recordings — no <time> per
+// point. Synthesize a constant-pace timeline from the route's estimated moving
+// time, distributed proportionally to cumulative distance (best available proxy
+// for pacing, since Strava exposes no actual pace data for a route).
+export function parseRouteGpx(text: string, name: string, estimatedDurationSeconds: number): Activity {
+  const doc = parseXml(text)
+
+  const trkpts = Array.from(doc.querySelectorAll('trkpt'))
+  if (trkpts.length === 0) throw new Error('Aucun point de tracé trouvé dans cet itinéraire.')
+
+  const geoPoints = trkpts.map((pt) => ({
+    lat: parseFloat(pt.getAttribute('lat') ?? '0'),
+    lon: parseFloat(pt.getAttribute('lon') ?? '0'),
+    ele: parseFloat(pt.querySelector('ele')?.textContent ?? '0'),
+  }))
+
+  const cumDist = [0]
+  for (let i = 1; i < geoPoints.length; i++) {
+    cumDist.push(cumDist[i - 1] + haversineDistance(geoPoints[i - 1].lat, geoPoints[i - 1].lon, geoPoints[i].lat, geoPoints[i].lon))
+  }
+  const totalDist = cumDist[cumDist.length - 1] || 1
+
+  const now = new Date()
+  const rawPoints: RawPoint[] = geoPoints.map((p, i) => ({
+    ...p,
+    time: new Date(now.getTime() + (estimatedDurationSeconds * 1000 * cumDist[i]) / totalDist),
+  }))
+
+  return buildActivity(rawPoints, name, 'strava')
+}
+
+// Reverses the route's travel direction. Distance and bounds are order-independent
+// (same segments summed either way) so they're kept as-is; bearing, speed, elevation
+// gain and per-point timing all depend on direction and must be recomputed. Original
+// time deltas between consecutive points are preserved (in reverse) so the pacing
+// profile stays intact — only the direction of travel changes.
+export function reverseActivity(activity: Activity): Activity {
+  const orig = activity.points
+  const n = orig.length
+  if (n < 2) return activity
+
+  const deltasMs = orig.slice(1).map((p, i) => p.time.getTime() - orig[i].time.getTime())
+  const reversedRaw = [...orig].reverse()
+
+  let cumulative = 0
+  const points: GpxPoint[] = reversedRaw.map((p, i) => {
+    const stepMs = i > 0 ? deltasMs[n - 1 - i] : 0
+    cumulative += stepMs
+    const time = new Date(activity.startTime.getTime() + cumulative)
+
+    const next = reversedRaw[i + 1]
+    const prev = reversedRaw[i - 1]
+    const ref = next ?? prev
+    const bearing = ref ? bearingBetween(p.lat, p.lon, ref.lat, ref.lon) : 0
+
+    let speed = 0
+    if (prev && stepMs > 0) {
+      const dist = haversineDistance(prev.lat, prev.lon, p.lat, p.lon)
+      speed = (dist / (stepMs / 1000)) * 3.6
+    }
+
+    return { lat: p.lat, lon: p.lon, ele: p.ele, time, bearing, speed }
+  })
+
+  let elevationGain = 0
+  for (let i = 1; i < points.length; i++) {
+    const d = points[i].ele - points[i - 1].ele
+    if (d > 0) elevationGain += d
+  }
+
+  return {
+    ...activity,
+    points,
+    startTime: points[0].time,
+    endTime: points[points.length - 1].time,
+    elevationGain,
+    windFetched: false,
+  }
+}

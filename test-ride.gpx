@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="TestGenerator">
+  <metadata><name>Sortie test Nord - 2024-06-15</name></metadata>
+  <trk>
+    <name>Sortie vélo Lille - Cassel</name>
+    <trkseg>
+      <trkpt lat="50.6292" lon="3.0573"><ele>24</ele><time>2024-06-15T07:00:00Z</time></trkpt>
+      <trkpt lat="50.6350" lon="3.0450"><ele>28</ele><time>2024-06-15T07:05:00Z</time></trkpt>
+      <trkpt lat="50.6420" lon="3.0310"><ele>32</ele><time>2024-06-15T07:10:00Z</time></trkpt>
+      <trkpt lat="50.6490" lon="3.0150"><ele>38</ele><time>2024-06-15T07:15:00Z</time></trkpt>
+      <trkpt lat="50.6580" lon="2.9980"><ele>45</ele><time>2024-06-15T07:20:00Z</time></trkpt>
+      <trkpt lat="50.6650" lon="2.9800"><ele>52</ele><time>2024-06-15T07:25:00Z</time></trkpt>
+      <trkpt lat="50.6720" lon="2.9620"><ele>58</ele><time>2024-06-15T07:30:00Z</time></trkpt>
+      <trkpt lat="50.6810" lon="2.9450"><ele>65</ele><time>2024-06-15T07:35:00Z</time></trkpt>
+      <trkpt lat="50.6900" lon="2.9280"><ele>72</ele><time>2024-06-15T07:40:00Z</time></trkpt>
+      <trkpt lat="50.6980" lon="2.9100"><ele>80</ele><time>2024-06-15T07:45:00Z</time></trkpt>
+      <trkpt lat="50.7060" lon="2.8930"><ele>88</ele><time>2024-06-15T07:50:00Z</time></trkpt>
+      <trkpt lat="50.7140" lon="2.8750"><ele>95</ele><time>2024-06-15T07:55:00Z</time></trkpt>
+      <trkpt lat="50.7220" lon="2.8580"><ele>105</ele><time>2024-06-15T08:00:00Z</time></trkpt>
+      <trkpt lat="50.7300" lon="2.8400"><ele>115</ele><time>2024-06-15T08:05:00Z</time></trkpt>
+      <trkpt lat="50.7380" lon="2.8220"><ele>128</ele><time>2024-06-15T08:10:00Z</time></trkpt>
+      <trkpt lat="50.7460" lon="2.8050"><ele>142</ele><time>2024-06-15T08:15:00Z</time></trkpt>
+      <trkpt lat="50.7530" lon="2.7880"><ele>155</ele><time>2024-06-15T08:20:00Z</time></trkpt>
+      <trkpt lat="50.7598" lon="2.7720"><ele>162</ele><time>2024-06-15T08:25:00Z</time></trkpt>
+      <trkpt lat="50.7620" lon="2.7580"><ele>158</ele><time>2024-06-15T08:30:00Z</time></trkpt>
+      <trkpt lat="50.7580" lon="2.7440"><ele>145</ele><time>2024-06-15T08:35:00Z</time></trkpt>
+      <trkpt lat="50.7520" lon="2.7320"><ele>132</ele><time>2024-06-15T08:40:00Z</time></trkpt>
+      <trkpt lat="50.7450" lon="2.7200"><ele>118</ele><time>2024-06-15T08:45:00Z</time></trkpt>
+      <trkpt lat="50.7380" lon="2.7080"><ele>105</ele><time>2024-06-15T08:50:00Z</time></trkpt>
+      <trkpt lat="50.7300" lon="2.6950"><ele>92</ele><time>2024-06-15T08:55:00Z</time></trkpt>
+    </trkseg>
+  </trk>
+</gpx>
