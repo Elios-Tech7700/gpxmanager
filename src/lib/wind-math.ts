@@ -165,13 +165,21 @@ export function computeEffortScore(activity: Activity): EffortScore | null {
 // candidate gets a real per-point wind fetch (not the sampled approximation)
 // since the candidate count is small and user-triggered, so exactness is
 // affordable and matters for a "which route should I actually ride" decision.
+//
+// Fetches are staggered (max 3 at once) rather than all fired via Promise.all —
+// a shortlist of 5+ routes firing simultaneously was enough to trip Open-Meteo's
+// burst rate limit (429), even with the retry/backoff already in wind-api.ts.
+const RANK_CONCURRENCY = 3
+
 export async function rankByWind(
   activities: Activity[],
   target: Date,
 ): Promise<{ activity: Activity; score: EffortScore }[]> {
-  const enriched = await Promise.all(
-    activities.map((a) => enrichActivityWithWind(shiftActivityStart(a, target))),
-  )
+  const enriched: Activity[] = []
+  for (let i = 0; i < activities.length; i += RANK_CONCURRENCY) {
+    const batch = activities.slice(i, i + RANK_CONCURRENCY)
+    enriched.push(...await Promise.all(batch.map((a) => enrichActivityWithWind(shiftActivityStart(a, target)))))
+  }
   const results = enriched
     .map((activity) => ({ activity, score: computeEffortScore(activity) }))
     .filter((r): r is { activity: Activity; score: EffortScore } => r.score !== null)

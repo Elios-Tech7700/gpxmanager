@@ -21,18 +21,27 @@ export function CompareSection({ onSelect }: { onSelect: (id: string) => void })
   const shortlisted = activities.filter((a) => a.shortlisted)
 
   const [targetInput, setTargetInput] = useState(() => format(roundUpToHalfHour(new Date()), DATETIME_LOCAL_FORMAT))
+  const [debouncedTarget, setDebouncedTarget] = useState(targetInput)
   const [results, setResults] = useState<{ activity: Activity; score: EffortScore }[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const shortlistedIds = shortlisted.map((a) => a.id).join(',')
 
+  // The native datetime-local picker can commit several intermediate values while
+  // the user is still adjusting it — debounce so each one doesn't fire a fresh
+  // batch of Open-Meteo requests for every shortlisted route.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedTarget(targetInput), 400)
+    return () => clearTimeout(t)
+  }, [targetInput])
+
   useEffect(() => {
     if (shortlisted.length < MIN_CANDIDATES) return
     let cancelled = false
     setLoading(true)
     setError(null)
-    rankByWind(shortlisted, new Date(targetInput))
+    rankByWind(shortlisted, new Date(debouncedTarget))
       .then(async (ranked) => {
         if (cancelled) return
         await Promise.all(ranked.map((r) => updateActivity(r.activity)))
@@ -43,7 +52,7 @@ export function CompareSection({ onSelect }: { onSelect: (id: string) => void })
     return () => { cancelled = true }
     // shortlistedIds (not the array reference) avoids re-running when updateActivity
     // above replaces the same activities with newly enriched copies
-  }, [shortlistedIds, targetInput])
+  }, [shortlistedIds, debouncedTarget])
 
   // Nothing to show yet — a single compact row instead of the full block,
   // so an empty comparator doesn't push the folders/activities list down.

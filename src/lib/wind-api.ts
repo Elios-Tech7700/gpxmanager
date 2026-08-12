@@ -6,6 +6,23 @@ function centroid(bounds: Activity['bounds']): [string, string] {
   return [((minLat + maxLat) / 2).toFixed(4), ((minLon + maxLon) / 2).toFixed(4)]
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+// The comparator can fire several of these concurrently (one per shortlisted route),
+// which occasionally trips Open-Meteo's burst rate limit (429) even well under its
+// documented daily quota. Retry transient 429s with a short backoff instead of
+// surfacing them straight to the user — a real outage still fails after this.
+async function fetchJson<T>(url: string, attempt = 0): Promise<T> {
+  const res = await fetch(url)
+  if (res.status === 429 && attempt < 2) {
+    const retryAfter = Number(res.headers.get('retry-after'))
+    await sleep(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 800 * 2 ** attempt)
+    return fetchJson<T>(url, attempt + 1)
+  }
+  if (!res.ok) throw new Error(`Open-Meteo error: ${res.status}`)
+  return res.json()
+}
+
 async function fetchWindRange(
   lat: string,
   lon: string,
@@ -21,10 +38,7 @@ async function fetchWindRange(
   url.searchParams.set('windspeed_unit', 'kmh')
   url.searchParams.set('timezone', 'UTC')
 
-  const res = await fetch(url.toString())
-  if (!res.ok) throw new Error(`Open-Meteo error: ${res.status}`)
-
-  const data: WindApiResponse = await res.json()
+  const data = await fetchJson<WindApiResponse>(url.toString())
 
   return data.hourly.time.map((t, i) => ({
     time: new Date(t + ':00Z'),
@@ -79,10 +93,7 @@ export async function fetchWindForecast(
   url.searchParams.set('windspeed_unit', 'kmh')
   url.searchParams.set('timezone', 'UTC')
 
-  const res = await fetch(url.toString())
-  if (!res.ok) throw new Error(`Open-Meteo error: ${res.status}`)
-
-  const data: ForecastApiResponse = await res.json()
+  const data = await fetchJson<ForecastApiResponse>(url.toString())
 
   const hours = data.hourly.time.map((t, i) => ({
     time: new Date(t + ':00Z'),
