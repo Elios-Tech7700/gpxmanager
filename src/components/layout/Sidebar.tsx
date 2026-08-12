@@ -32,14 +32,15 @@ function ActivityCard({ activity, active, folders, onSelect, onDelete, onRename,
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(activity.name)
-  const [moveMenuOpen, setMoveMenuOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [moveSubmenuOpen, setMoveSubmenuOpen] = useState(false)
 
   useEffect(() => {
-    if (!moveMenuOpen) return
-    const close = () => setMoveMenuOpen(false)
+    if (!menuOpen) return
+    const close = () => { setMenuOpen(false); setMoveSubmenuOpen(false) }
     document.addEventListener('click', close)
     return () => document.removeEventListener('click', close)
-  }, [moveMenuOpen])
+  }, [menuOpen])
 
   const startEditing = () => {
     setDraft(activity.name)
@@ -102,63 +103,76 @@ function ActivityCard({ activity, active, folders, onSelect, onDelete, onRename,
           </span>
           <span
             role="button"
-            onClick={(e) => { e.stopPropagation(); onDuplicate() }}
-            className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-xs p-1.5 -m-1.5"
-            title="Dupliquer"
+            onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v); setMoveSubmenuOpen(false) }}
+            className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-sm leading-none p-1.5 -m-1.5"
+            title="Plus d'actions"
           >
-            ⧉
-          </span>
-          <span
-            role="button"
-            onClick={(e) => { e.stopPropagation(); setMoveMenuOpen((v) => !v) }}
-            className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-xs p-1.5 -m-1.5"
-            title="Déplacer vers un dossier"
-          >
-            📁
-          </span>
-          <span
-            role="button"
-            onClick={(e) => { e.stopPropagation(); startEditing() }}
-            className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-xs p-1.5 -m-1.5"
-            title="Renommer"
-          >
-            ✎
-          </span>
-          <span
-            role="button"
-            onClick={(e) => { e.stopPropagation(); onDelete() }}
-            className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-[var(--color-text-muted)] hover:text-[var(--color-wind-strong)] text-xs p-1.5 -m-1.5"
-            title="Supprimer"
-          >
-            ✕
+            ⋯
           </span>
 
-          {moveMenuOpen && (
+          {menuOpen && (
             <div
               onClick={(e) => e.stopPropagation()}
-              className="absolute right-0 top-5 z-20 w-40 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-3)] shadow-lg py-1 text-xs"
+              className="absolute right-0 top-5 z-20 w-44 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-3)] shadow-lg py-1 text-xs"
             >
-              {activity.folderId && (
-                <button
-                  onClick={() => { onMove(null); setMoveMenuOpen(false) }}
-                  className="w-full text-left px-3 py-1.5 hover:bg-[var(--color-surface-2)] text-[var(--color-text-secondary)]"
-                >
-                  Retirer du dossier
-                </button>
-              )}
-              {folders.length === 0 ? (
-                <p className="px-3 py-1.5 text-[var(--color-text-muted)]">Aucun dossier</p>
-              ) : (
-                folders.map((f) => (
+              {!moveSubmenuOpen ? (
+                <>
                   <button
-                    key={f.id}
-                    onClick={() => { onMove(f.id); setMoveMenuOpen(false) }}
-                    disabled={f.id === activity.folderId}
-                    className="w-full text-left px-3 py-1.5 hover:bg-[var(--color-surface-2)] disabled:opacity-40 text-[var(--color-text-primary)] truncate"
+                    onClick={() => { onDuplicate(); setMenuOpen(false) }}
+                    className="w-full text-left px-3 py-1.5 hover:bg-[var(--color-surface-2)] text-[var(--color-text-primary)]"
                   >
-                    {f.name}
+                    ⧉ Dupliquer
                   </button>
-                ))
+                  <button
+                    onClick={() => setMoveSubmenuOpen(true)}
+                    className="w-full text-left px-3 py-1.5 hover:bg-[var(--color-surface-2)] text-[var(--color-text-primary)]"
+                  >
+                    📁 Déplacer vers…
+                  </button>
+                  <button
+                    onClick={() => { startEditing(); setMenuOpen(false) }}
+                    className="w-full text-left px-3 py-1.5 hover:bg-[var(--color-surface-2)] text-[var(--color-text-primary)]"
+                  >
+                    ✎ Renommer
+                  </button>
+                  <button
+                    onClick={() => { onDelete(); setMenuOpen(false) }}
+                    className="w-full text-left px-3 py-1.5 hover:bg-[var(--color-surface-2)] text-[var(--color-wind-strong)]"
+                  >
+                    ✕ Supprimer
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setMoveSubmenuOpen(false)}
+                    className="w-full text-left px-3 py-1.5 hover:bg-[var(--color-surface-2)] text-[var(--color-text-secondary)]"
+                  >
+                    ‹ Retour
+                  </button>
+                  {activity.folderId && (
+                    <button
+                      onClick={() => { onMove(null); setMenuOpen(false); setMoveSubmenuOpen(false) }}
+                      className="w-full text-left px-3 py-1.5 hover:bg-[var(--color-surface-2)] text-[var(--color-text-secondary)]"
+                    >
+                      Retirer du dossier
+                    </button>
+                  )}
+                  {folders.length === 0 ? (
+                    <p className="px-3 py-1.5 text-[var(--color-text-muted)]">Aucun dossier</p>
+                  ) : (
+                    folders.map((f) => (
+                      <button
+                        key={f.id}
+                        onClick={() => { onMove(f.id); setMenuOpen(false); setMoveSubmenuOpen(false) }}
+                        disabled={f.id === activity.folderId}
+                        className="w-full text-left px-3 py-1.5 hover:bg-[var(--color-surface-2)] disabled:opacity-40 text-[var(--color-text-primary)] truncate"
+                      >
+                        {f.name}
+                      </button>
+                    ))
+                  )}
+                </>
               )}
             </div>
           )}

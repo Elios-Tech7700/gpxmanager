@@ -43,3 +43,16 @@ html, body, #root {
   font-size: 10px;
   opacity: 0.5;
 }
+
+/* Pinch-to-zoom is the natural gesture on touch — the on-screen zoom buttons
+   are redundant there and just crowd the top-right corner. Keep the compass
+   button (bearing reset), only hide zoom in/out under the md breakpoint. */
+@media (max-width: 767px) {
+  .maplibregl-ctrl-zoom-in,
+  .maplibregl-ctrl-zoom-out {
+    /* !important: maplibre-gl.css is bundled after this file (imported deeper
+       in the tree, from MapView.tsx) and sets its own unconditional display
+       on these buttons, so it wins the cascade at equal specificity otherwise. */
+    display: none !important;
+  }
+}
