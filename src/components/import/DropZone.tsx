@@ -57,9 +57,12 @@ export function DropZone() {
     <div className="p-4">
       <label
         className={clsx(
-          'relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-10 cursor-pointer transition-all duration-200',
+          // Mobile: a compact single-row bar — dragging a file onto a phone isn't a
+          // real gesture, so the illustrated drop zone only makes sense from md up.
+          'relative flex items-center justify-center gap-3 rounded-xl cursor-pointer transition-all duration-200',
+          'px-4 py-3 border md:flex-col md:p-10 md:border-2 md:border-dashed',
           dragging
-            ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 scale-[1.01]'
+            ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 md:scale-[1.01]'
             : 'border-[var(--color-border)] bg-[var(--color-surface-2)] hover:border-[var(--color-text-muted)]',
         )}
         onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
@@ -75,19 +78,23 @@ export function DropZone() {
         />
 
         <div className={clsx(
-          'w-12 h-12 rounded-full flex items-center justify-center transition-colors',
+          'shrink-0 w-8 h-8 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-colors',
           dragging ? 'bg-[var(--color-accent)]/20' : 'bg-[var(--color-surface-3)]',
         )}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--color-text-secondary)]">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--color-text-secondary)] md:hidden">
+            <path d="M3 15v4a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4M7 10l5-5 5 5M12 5v10" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--color-text-secondary)] hidden md:block">
             <path d="M3 15v4a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4M7 10l5-5 5 5M12 5v10" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
 
-        <div className="text-center">
-          <p className="text-sm font-medium text-[var(--color-text-primary)]">
-            {importing ? 'Importation…' : 'Glisse tes fichiers GPX ici'}
+        <div className="text-center min-w-0">
+          <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">
+            <span className="md:hidden">{importing ? 'Importation…' : 'Importer un GPX'}</span>
+            <span className="hidden md:inline">{importing ? 'Importation…' : 'Glisse tes fichiers GPX ici'}</span>
           </p>
-          <p className="text-xs text-[var(--color-text-muted)] mt-1">
+          <p className="hidden md:block text-xs text-[var(--color-text-muted)] mt-1">
             ou clique pour sélectionner — Strava, Garmin, Komoot
           </p>
         </div>

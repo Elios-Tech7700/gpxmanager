@@ -59,6 +59,17 @@ L'utilisateur a envoyé 2 captures d'écran mobile réelles (menu + carte) avec 
 
 **Prochaine étape logique** : détailler/valider les 3 vagues, puis lancer l'implémentation (probablement `/apex` vu que ça touche plusieurs fichiers).
 
+## Vague 1 — implémentée et déployée (12/08)
+
+Trois changements d'habillage, aucune logique métier touchée :
+1. **`Sidebar.tsx`** — les 4 icônes (⧉📁✎✕) regroupées derrière un bouton "⋯" avec labels textuels ; ⭐ reste seule visible en permanence. Sous-menu "Déplacer vers…" imbriqué (bouton "‹ Retour").
+2. **`index.css`** — zoom +/− MapLibre masqué sous 768px (`!important` nécessaire : `maplibre-gl.css` est bundlé après `index.css`, donc gagne la cascade à spécificité égale sans ça). Boussole/thème/inverser restent visibles partout.
+3. **`MapView.tsx`** — `WindSummaryBadge` replié par défaut (ligne "37/100 · Modéré"), détail complet au clic.
+
+Testé desktop + mobile simulé (iframe 390px), committé (`5cbd3d3`), déployé sur `gpxmanager.vercel.app`.
+
+**Vagues 2 et 3** restent à faire : comparateur compact par défaut, zone d'import mobile, prévisions repliables (vague 2) ; barre heure allégée + points de vigilance (vague 3).
+
 ## Décisions et préférences à retenir
 
 - Pas de rotation du secret Strava même après exposition accidentelle en clair dans le chat — décision explicite de l'utilisateur ("non on laisse comme ça").

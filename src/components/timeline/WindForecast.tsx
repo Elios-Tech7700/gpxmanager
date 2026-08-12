@@ -4,6 +4,7 @@ import { fr } from 'date-fns/locale'
 import type { Activity, WindClass } from '@/types'
 import { fetchWindForecast, type DaylightWindow } from '@/lib/wind-api'
 import { computeRelativeWind, windClassLabel, WIND_CLASS_COLOR, estimateWindEffort } from '@/lib/wind-math'
+import clsx from 'clsx'
 
 interface ForecastHour {
   time: Date
@@ -53,6 +54,7 @@ export function WindForecast({ activity, selectedTime, onSelectTime }: Props) {
   const [daylight, setDaylight] = useState<DaylightWindow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [hoverHour, setHoverHour] = useState<ForecastHour | null>(null)
+  const [expanded, setExpanded] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const bearing = activity.points[0]?.bearing ?? 0
@@ -184,19 +186,34 @@ export function WindForecast({ activity, selectedTime, onSelectTime }: Props) {
   const pillX = (x: number, width: number) => Math.max(0, Math.min(totalWidth - width, x - width / 2))
 
   return (
-    <div className="bg-[var(--color-surface-1)] border-t border-[var(--color-border)] px-4 pt-3 pb-3">
-      <div className="flex items-baseline justify-between mb-1.5">
-        <p className="text-[10px] text-[var(--color-text-muted)] font-medium uppercase tracking-wider">Prévision vent</p>
+    <div className="bg-[var(--color-surface-1)] border-t border-[var(--color-border)]">
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-center gap-2 px-4 py-2.5 text-left"
+      >
+        <svg
+          className={clsx('shrink-0 text-[var(--color-text-muted)] transition-transform', expanded && 'rotate-180')}
+          width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+        >
+          <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <p className="text-[10px] text-[var(--color-text-muted)] font-medium uppercase tracking-wider shrink-0">Prévisions</p>
         {readout && (
-          <p className="text-xs text-[var(--color-text-secondary)] capitalize">
-            {format(readout.time, "EEEE d MMM, HH'h'", { locale: fr })}
-            {' · '}
+          <p className="text-xs text-[var(--color-text-secondary)] truncate">
             <span style={{ color: WIND_CLASS_COLOR[readout.class] }} className="font-medium">
               {Math.round(readout.speed)} km/h, {windClassLabel(readout.class).toLowerCase()}
             </span>
           </p>
         )}
-      </div>
+      </button>
+
+      {expanded && (
+      <div className="px-4 pb-3">
+      {readout && (
+        <p className="text-xs text-[var(--color-text-secondary)] capitalize mb-1.5">
+          {format(readout.time, "EEEE d MMM, HH'h'", { locale: fr })}
+        </p>
+      )}
 
       {bestToday && (
         bestToday.hour.time.getTime() === selectedHour?.time.getTime() ? (
@@ -333,6 +350,8 @@ export function WindForecast({ activity, selectedTime, onSelectTime }: Props) {
           ›
         </button>
       </div>
+      </div>
+      )}
     </div>
   )
 }
