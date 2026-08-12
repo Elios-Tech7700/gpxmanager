@@ -68,7 +68,21 @@ Trois changements d'habillage, aucune logique métier touchée :
 
 Testé desktop + mobile simulé (iframe 390px), committé (`5cbd3d3`), déployé sur `gpxmanager.vercel.app`.
 
-**Vagues 2 et 3** restent à faire : comparateur compact par défaut, zone d'import mobile, prévisions repliables (vague 2) ; barre heure allégée + points de vigilance (vague 3).
+## Vague 2 — implémentée et déployée (12/08)
+
+1. **`CompareSection.tsx`** — sous 2 sélections, remplace le bloc complet par une ligne compacte "🏆 Comparateur vent — 0/2 sélectionné" (`title` HTML avec l'explication complète pour le survol desktop). Le classement complet reste inchangé dès 2+ sélections.
+2. **`DropZone.tsx`** — un seul `<label>` responsive : barre compacte "Importer un GPX" sur mobile (`md:hidden` pour le texte long, icône réduite), gros encart illustré dashed inchangé à partir de `md:`.
+3. **`WindForecast.tsx`** — repliable, fermé par défaut. Poignée "▾ Prévisions · 9 km/h, vent dans le dos" toujours visible ; au clic, déplie date complète + callout "meilleur créneau" + courbe SVG.
+
+Committé (`86367e4`), déployé.
+
+## Vague 3 — implémentée et déployée (12/08)
+
+**`MapView.tsx`** — la rangée −/date-heure/+/+1h toujours affichée est devenue un bouton compact "22:00 ▾" par défaut ; au clic elle se déplie en la rangée complète (−, sélecteur, +, +1h, ✕ pour refermer). Le bouton "Recalculer/Charger le vent" reste toujours visible à côté, dans les deux états.
+
+Committé (`fd5b721`), déployé.
+
+**Les 3 vagues de l'audit UX du 10/08 sont maintenant terminées et en production.** Points de vigilance notés dans l'audit (recherche/filtre sur liste longue, vue dédiée aux itinéraires ⭐, score d'effort en double, mode paysage, accessibilité icônes) restent à traiter plus tard, pas d'anticipation nécessaire pour l'instant.
 
 ## Décisions et préférences à retenir
 
