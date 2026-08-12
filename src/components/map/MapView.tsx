@@ -169,6 +169,7 @@ export function MapView({ onOpenSidebar }: { onOpenSidebar: () => void }) {
   const [loadingWind, setLoadingWind] = useState(false)
   const [windError, setWindError] = useState<string | null>(null)
   const [plannedAt, setPlannedAt] = useState(() => format(new Date(), DATETIME_LOCAL_FORMAT))
+  const [timeControlsOpen, setTimeControlsOpen] = useState(false)
   const [theme, setTheme] = useState<MapTheme>(() => {
     const stored = localStorage.getItem(THEME_STORAGE_KEY)
     return stored === 'light' || stored === 'dark' ? stored : 'dark'
@@ -356,39 +357,58 @@ export function MapView({ onOpenSidebar }: { onOpenSidebar: () => void }) {
               </span>
             )}
             <div className="flex flex-wrap items-center justify-center gap-1.5 bg-[var(--color-surface-1)]/95 backdrop-blur rounded-2xl md:rounded-full pl-1 pr-1 py-1 border border-[var(--color-border)] shadow-lg">
-              <button
-                onClick={() => shiftPlannedAt(-30)}
-                disabled={loadingWind}
-                title="-30 min"
-                className="w-6 h-6 flex items-center justify-center rounded-full text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-3)] hover:text-[var(--color-text-primary)] shrink-0 disabled:opacity-40"
-              >
-                −
-              </button>
-              <input
-                type="datetime-local"
-                value={plannedAt}
-                step={1800}
-                min={format(new Date(), DATETIME_LOCAL_FORMAT)}
-                max={format(new Date(Date.now() + MAX_FORECAST_DAYS * 86400000), DATETIME_LOCAL_FORMAT)}
-                onChange={(e) => commitPlannedAt(new Date(e.target.value))}
-                className="bg-transparent text-xs text-[var(--color-text-primary)] outline-none"
-              />
-              <button
-                onClick={() => shiftPlannedAt(30)}
-                disabled={loadingWind}
-                title="+30 min"
-                className="w-6 h-6 flex items-center justify-center rounded-full text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-3)] hover:text-[var(--color-text-primary)] shrink-0 disabled:opacity-40"
-              >
-                +
-              </button>
-              <button
-                onClick={() => shiftPlannedAt(60)}
-                disabled={loadingWind}
-                title="+1 heure"
-                className="text-[11px] px-1.5 h-6 flex items-center justify-center rounded-full text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-3)] hover:text-[var(--color-text-primary)] shrink-0 disabled:opacity-40"
-              >
-                +1h
-              </button>
+              {timeControlsOpen ? (
+                <>
+                  <button
+                    onClick={() => shiftPlannedAt(-30)}
+                    disabled={loadingWind}
+                    title="-30 min"
+                    className="w-6 h-6 flex items-center justify-center rounded-full text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-3)] hover:text-[var(--color-text-primary)] shrink-0 disabled:opacity-40"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="datetime-local"
+                    value={plannedAt}
+                    step={1800}
+                    min={format(new Date(), DATETIME_LOCAL_FORMAT)}
+                    max={format(new Date(Date.now() + MAX_FORECAST_DAYS * 86400000), DATETIME_LOCAL_FORMAT)}
+                    onChange={(e) => commitPlannedAt(new Date(e.target.value))}
+                    className="bg-transparent text-xs text-[var(--color-text-primary)] outline-none"
+                  />
+                  <button
+                    onClick={() => shiftPlannedAt(30)}
+                    disabled={loadingWind}
+                    title="+30 min"
+                    className="w-6 h-6 flex items-center justify-center rounded-full text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-3)] hover:text-[var(--color-text-primary)] shrink-0 disabled:opacity-40"
+                  >
+                    +
+                  </button>
+                  <button
+                    onClick={() => shiftPlannedAt(60)}
+                    disabled={loadingWind}
+                    title="+1 heure"
+                    className="text-[11px] px-1.5 h-6 flex items-center justify-center rounded-full text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-3)] hover:text-[var(--color-text-primary)] shrink-0 disabled:opacity-40"
+                  >
+                    +1h
+                  </button>
+                  <button
+                    onClick={() => setTimeControlsOpen(false)}
+                    title="Fermer"
+                    className="w-6 h-6 flex items-center justify-center rounded-full text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-3)] hover:text-[var(--color-text-primary)] shrink-0"
+                  >
+                    ✕
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setTimeControlsOpen(true)}
+                  className="flex items-center gap-1 px-3 h-6 rounded-full text-xs font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-surface-3)] shrink-0"
+                >
+                  {format(new Date(plannedAt), 'HH:mm')}
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                </button>
+              )}
               <button
                 onClick={() => handleLoadWind()}
                 disabled={loadingWind}
