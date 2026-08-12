@@ -5,7 +5,6 @@ import { useActivities } from '@/store/activities'
 import { useFolders } from '@/store/folders'
 import { DropZone } from '@/components/import/DropZone'
 import { StravaImport } from '@/components/import/StravaImport'
-import { CompareSection } from '@/components/compare/CompareSection'
 import type { Activity, Folder } from '@/types'
 import clsx from 'clsx'
 
@@ -66,7 +65,7 @@ function ActivityCard({ activity, active, folders, onSelect, onDelete, onRename,
           : 'bg-[var(--color-surface-2)] border border-transparent hover:border-[var(--color-border)]',
       )}
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start justify-between gap-1">
         {editing ? (
           <input
             autoFocus
@@ -89,12 +88,12 @@ function ActivityCard({ activity, active, folders, onSelect, onDelete, onRename,
             {activity.name}
           </p>
         )}
-        <div className="flex items-center gap-1.5 shrink-0 mt-0.5 relative">
+        <div className="flex items-center shrink-0 -mr-2.5 relative">
           <span
             role="button"
             onClick={(e) => { e.stopPropagation(); onToggleShortlist() }}
             className={clsx(
-              'text-xs p-1.5 -m-1.5 transition-colors',
+              'w-11 h-11 -m-2.5 flex items-center justify-center text-sm transition-colors',
               activity.shortlisted ? 'text-[var(--color-wind-moderate)]' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]',
             )}
             title={activity.shortlisted ? 'Retirer de la présélection' : 'Ajouter à la présélection pour le comparateur'}
@@ -104,7 +103,7 @@ function ActivityCard({ activity, active, folders, onSelect, onDelete, onRename,
           <span
             role="button"
             onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v); setMoveSubmenuOpen(false) }}
-            className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-sm leading-none p-1.5 -m-1.5"
+            className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity w-11 h-11 -m-2.5 flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-base leading-none"
             title="Plus d'actions"
           >
             ⋯
@@ -113,31 +112,31 @@ function ActivityCard({ activity, active, folders, onSelect, onDelete, onRename,
           {menuOpen && (
             <div
               onClick={(e) => e.stopPropagation()}
-              className="absolute right-0 top-5 z-20 w-44 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-3)] shadow-lg py-1 text-xs"
+              className="absolute right-0 top-9 z-20 w-48 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-3)] shadow-lg py-1 text-xs"
             >
               {!moveSubmenuOpen ? (
                 <>
                   <button
                     onClick={() => { onDuplicate(); setMenuOpen(false) }}
-                    className="w-full text-left px-3 py-1.5 hover:bg-[var(--color-surface-2)] text-[var(--color-text-primary)]"
+                    className="w-full text-left px-3 min-h-11 flex items-center hover:bg-[var(--color-surface-2)] text-[var(--color-text-primary)]"
                   >
                     ⧉ Dupliquer
                   </button>
                   <button
                     onClick={() => setMoveSubmenuOpen(true)}
-                    className="w-full text-left px-3 py-1.5 hover:bg-[var(--color-surface-2)] text-[var(--color-text-primary)]"
+                    className="w-full text-left px-3 min-h-11 flex items-center hover:bg-[var(--color-surface-2)] text-[var(--color-text-primary)]"
                   >
                     📁 Déplacer vers…
                   </button>
                   <button
                     onClick={() => { startEditing(); setMenuOpen(false) }}
-                    className="w-full text-left px-3 py-1.5 hover:bg-[var(--color-surface-2)] text-[var(--color-text-primary)]"
+                    className="w-full text-left px-3 min-h-11 flex items-center hover:bg-[var(--color-surface-2)] text-[var(--color-text-primary)]"
                   >
                     ✎ Renommer
                   </button>
                   <button
                     onClick={() => { onDelete(); setMenuOpen(false) }}
-                    className="w-full text-left px-3 py-1.5 hover:bg-[var(--color-surface-2)] text-[var(--color-wind-strong)]"
+                    className="w-full text-left px-3 min-h-11 flex items-center hover:bg-[var(--color-surface-2)] text-[var(--color-wind-strong)]"
                   >
                     ✕ Supprimer
                   </button>
@@ -146,27 +145,27 @@ function ActivityCard({ activity, active, folders, onSelect, onDelete, onRename,
                 <>
                   <button
                     onClick={() => setMoveSubmenuOpen(false)}
-                    className="w-full text-left px-3 py-1.5 hover:bg-[var(--color-surface-2)] text-[var(--color-text-secondary)]"
+                    className="w-full text-left px-3 min-h-11 flex items-center hover:bg-[var(--color-surface-2)] text-[var(--color-text-secondary)]"
                   >
                     ‹ Retour
                   </button>
                   {activity.folderId && (
                     <button
                       onClick={() => { onMove(null); setMenuOpen(false); setMoveSubmenuOpen(false) }}
-                      className="w-full text-left px-3 py-1.5 hover:bg-[var(--color-surface-2)] text-[var(--color-text-secondary)]"
+                      className="w-full text-left px-3 min-h-11 flex items-center hover:bg-[var(--color-surface-2)] text-[var(--color-text-secondary)]"
                     >
                       Retirer du dossier
                     </button>
                   )}
                   {folders.length === 0 ? (
-                    <p className="px-3 py-1.5 text-[var(--color-text-muted)]">Aucun dossier</p>
+                    <p className="px-3 py-2.5 text-[var(--color-text-muted)]">Aucun dossier</p>
                   ) : (
                     folders.map((f) => (
                       <button
                         key={f.id}
                         onClick={() => { onMove(f.id); setMenuOpen(false); setMoveSubmenuOpen(false) }}
                         disabled={f.id === activity.folderId}
-                        className="w-full text-left px-3 py-1.5 hover:bg-[var(--color-surface-2)] disabled:opacity-40 text-[var(--color-text-primary)] truncate"
+                        className="w-full text-left px-3 min-h-11 flex items-center hover:bg-[var(--color-surface-2)] disabled:opacity-40 text-[var(--color-text-primary)] truncate"
                       >
                         {f.name}
                       </button>
@@ -179,7 +178,7 @@ function ActivityCard({ activity, active, folders, onSelect, onDelete, onRename,
         </div>
       </div>
       <p className="text-xs text-[var(--color-text-muted)] mt-1">
-        {format(activity.startTime, 'd MMM yyyy', { locale: fr })}
+        {format(activity.startTime, 'd MMM yyyy, HH:mm', { locale: fr })}
       </p>
       <div className="flex gap-3 mt-2 items-center">
         <span className="text-xs text-[var(--color-text-secondary)]">{formatDist(activity.distanceMeters)}</span>
@@ -216,8 +215,8 @@ function FolderHeader({ folder, count, expanded, onToggle, onRename, onDelete }:
   }
 
   return (
-    <div className="flex items-center gap-1.5 px-1 py-1.5 group">
-      <button onClick={onToggle} className="text-[var(--color-text-muted)] text-xs w-3 shrink-0">
+    <div className="flex items-center gap-1 px-1 py-1 group">
+      <button onClick={onToggle} className="text-[var(--color-text-muted)] text-xs w-8 h-8 flex items-center justify-center shrink-0">
         {expanded ? '▾' : '▸'}
       </button>
       {editing ? (
@@ -230,22 +229,22 @@ function FolderHeader({ folder, count, expanded, onToggle, onRename, onDelete }:
             if (e.key === 'Enter') commit()
             if (e.key === 'Escape') { setDraft(folder.name); setEditing(false) }
           }}
-          className="text-xs font-semibold uppercase tracking-wider bg-transparent border-b border-[var(--color-accent)] outline-none flex-1 min-w-0 text-[var(--color-text-secondary)]"
+          className="text-xs font-semibold tracking-wide bg-transparent border-b border-[var(--color-accent)] outline-none flex-1 min-w-0 text-[var(--color-text-secondary)]"
         />
       ) : (
         <p
           onDoubleClick={startEditing}
           onClick={onToggle}
-          className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)] truncate flex-1 cursor-pointer"
+          className="text-xs font-semibold tracking-wide text-[var(--color-text-secondary)] truncate flex-1 cursor-pointer"
         >
-          {folder.name} <span className="text-[var(--color-text-muted)] normal-case font-normal">({count})</span>
+          {folder.name} <span className="text-[var(--color-text-muted)] font-normal">({count})</span>
         </p>
       )}
-      <div className="flex items-center gap-1.5 shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-        <span role="button" onClick={startEditing} title="Renommer" className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-xs p-1.5 -m-1.5">
+      <div className="flex items-center shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+        <span role="button" onClick={startEditing} title="Renommer" className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] w-9 h-9 flex items-center justify-center text-xs">
           ✎
         </span>
-        <span role="button" onClick={onDelete} title="Supprimer le dossier" className="text-[var(--color-text-muted)] hover:text-[var(--color-wind-strong)] text-xs p-1.5 -m-1.5">
+        <span role="button" onClick={onDelete} title="Supprimer le dossier" className="text-[var(--color-text-muted)] hover:text-[var(--color-wind-strong)] w-9 h-9 flex items-center justify-center text-xs">
           ✕
         </span>
       </div>
@@ -253,7 +252,7 @@ function FolderHeader({ folder, count, expanded, onToggle, onRename, onDelete }:
   )
 }
 
-export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function SortiesPanel({ onSelectActivity }: { onSelectActivity: () => void }) {
   const { activities, activeId, setActive, removeActivity, updateActivity, moveActivity, duplicateActivity, toggleShortlist } = useActivities()
   const { folders, addFolder, renameFolder, deleteFolder } = useFolders()
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
@@ -275,7 +274,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
     activity: a,
     active: a.id === activeId,
     folders,
-    onSelect: () => { setActive(a.id); onClose() },
+    onSelect: () => { setActive(a.id); onSelectActivity() },
     onDelete: () => removeActivity(a.id),
     onRename: (name: string) => updateActivity({ ...a, name }),
     onMove: (folderId: string | null) => moveActivity(a.id, folderId),
@@ -284,115 +283,85 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
   })
 
   return (
-    <aside
-      className={clsx(
-        'flex flex-col h-full w-[85vw] max-w-72 md:w-72 shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface-1)]',
-        'fixed inset-y-0 left-0 z-30 transition-transform duration-200 md:static md:translate-x-0',
-        open ? 'translate-x-0' : '-translate-x-full',
-      )}
-    >
-      {/* Header — stays fixed, everything else scrolls as one region below so the
-          folders/activities are always reachable even when DropZone + StravaImport
-          (unbounded natural height) grow taller than a short mobile viewport */}
-      <div className="shrink-0 px-4 py-4 border-b border-[var(--color-border)] flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded bg-[var(--color-accent)] flex items-center justify-center">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" strokeLinecap="round" strokeLinejoin="round"/>
-              <polyline points="9 22 9 12 15 12 15 22" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </div>
-          <h1 className="text-sm font-semibold text-[var(--color-text-primary)]">GPX Manager</h1>
+    <div className="px-3 py-3 space-y-3">
+      <DropZone />
+      <StravaImport />
+
+      <div className="space-y-0.5">
+        <div className="flex items-center justify-between px-1">
+          <p className="text-[10px] text-[var(--color-text-muted)] font-medium uppercase tracking-wider">Dossiers</p>
+          <button
+            onClick={() => { setCreatingFolder(true); setNewFolderName('') }}
+            className="text-[10px] text-[var(--color-accent-hover)] hover:text-[var(--color-text-primary)] min-h-8 px-1"
+          >
+            + Nouveau
+          </button>
         </div>
-        <button onClick={onClose} className="md:hidden w-8 h-8 flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">
-          ✕
-        </button>
-      </div>
 
-      <div className="flex-1 overflow-y-auto min-h-0">
-        <CompareSection onSelect={(id) => { setActive(id); onClose() }} />
-        <DropZone />
-        <StravaImport />
-
-        {/* Folders + activity list */}
-        <div className="px-3 pb-4 space-y-3">
-        <div className="space-y-0.5">
-          <div className="flex items-center justify-between px-1">
-            <p className="text-[10px] text-[var(--color-text-muted)] font-medium uppercase tracking-wider">Dossiers</p>
-            <button
-              onClick={() => { setCreatingFolder(true); setNewFolderName('') }}
-              className="text-[10px] text-[var(--color-accent-hover)] hover:text-[var(--color-text-primary)]"
-            >
-              + Nouveau
-            </button>
-          </div>
-
-          {creatingFolder && (
-            <input
-              autoFocus
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              onBlur={() => {
+        {creatingFolder && (
+          <input
+            autoFocus
+            value={newFolderName}
+            onChange={(e) => setNewFolderName(e.target.value)}
+            onBlur={() => {
+              const trimmed = newFolderName.trim()
+              if (trimmed) addFolder(trimmed)
+              setCreatingFolder(false)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
                 const trimmed = newFolderName.trim()
                 if (trimmed) addFolder(trimmed)
                 setCreatingFolder(false)
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  const trimmed = newFolderName.trim()
-                  if (trimmed) addFolder(trimmed)
-                  setCreatingFolder(false)
-                }
-                if (e.key === 'Escape') setCreatingFolder(false)
-              }}
-              placeholder="Nom du dossier"
-              className="w-full text-xs bg-[var(--color-surface-2)] border border-[var(--color-accent)] rounded px-2 py-1.5 outline-none text-[var(--color-text-primary)]"
-            />
-          )}
+              }
+              if (e.key === 'Escape') setCreatingFolder(false)
+            }}
+            placeholder="Nom du dossier"
+            className="w-full text-xs bg-[var(--color-surface-2)] border border-[var(--color-accent)] rounded px-2 py-1.5 outline-none text-[var(--color-text-primary)]"
+          />
+        )}
 
-          {folders.map((f) => {
-            const folderActivities = activities.filter((a) => a.folderId === f.id)
-            const expanded = expandedFolders.has(f.id)
-            return (
-              <div key={f.id}>
-                <FolderHeader
-                  folder={f}
-                  count={folderActivities.length}
-                  expanded={expanded}
-                  onToggle={() => toggleFolder(f.id)}
-                  onRename={(name) => renameFolder(f.id, name)}
-                  onDelete={() => deleteFolder(f.id)}
-                />
-                {expanded && (
-                  <div className="space-y-1.5 pl-3 pb-1.5">
-                    {folderActivities.length === 0 ? (
-                      <p className="text-[10px] text-[var(--color-text-muted)] px-1 pb-1">Vide</p>
-                    ) : (
-                      folderActivities.map((a) => <ActivityCard key={a.id} {...cardProps(a)} />)
-                    )}
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-
-        <div className="space-y-1.5">
-          {folders.length > 0 && (
-            <p className="text-[10px] text-[var(--color-text-muted)] font-medium uppercase tracking-wider px-1">Non classées</p>
-          )}
-          {activities.length === 0 ? (
-            <p className="text-xs text-[var(--color-text-muted)] text-center mt-4">
-              Aucune sortie importée
-            </p>
-          ) : unfiled.length === 0 && folders.length > 0 ? (
-            <p className="text-[10px] text-[var(--color-text-muted)] px-1">Aucune</p>
-          ) : (
-            unfiled.map((a) => <ActivityCard key={a.id} {...cardProps(a)} />)
-          )}
-        </div>
-        </div>
+        {folders.map((f) => {
+          const folderActivities = activities.filter((a) => a.folderId === f.id)
+          const expanded = expandedFolders.has(f.id)
+          return (
+            <div key={f.id}>
+              <FolderHeader
+                folder={f}
+                count={folderActivities.length}
+                expanded={expanded}
+                onToggle={() => toggleFolder(f.id)}
+                onRename={(name) => renameFolder(f.id, name)}
+                onDelete={() => deleteFolder(f.id)}
+              />
+              {expanded && (
+                <div className="space-y-1.5 pl-3 pb-1.5">
+                  {folderActivities.length === 0 ? (
+                    <p className="text-[10px] text-[var(--color-text-muted)] px-1 pb-1">Vide</p>
+                  ) : (
+                    folderActivities.map((a) => <ActivityCard key={a.id} {...cardProps(a)} />)
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
-    </aside>
+
+      <div className="space-y-1.5">
+        {folders.length > 0 && (
+          <p className="text-[10px] text-[var(--color-text-muted)] font-medium uppercase tracking-wider px-1">Non classées</p>
+        )}
+        {activities.length === 0 ? (
+          <p className="text-xs text-[var(--color-text-muted)] text-center mt-4">
+            Aucune sortie importée
+          </p>
+        ) : unfiled.length === 0 && folders.length > 0 ? (
+          <p className="text-[10px] text-[var(--color-text-muted)] px-1">Aucune</p>
+        ) : (
+          unfiled.map((a) => <ActivityCard key={a.id} {...cardProps(a)} />)
+        )}
+      </div>
+    </div>
   )
 }

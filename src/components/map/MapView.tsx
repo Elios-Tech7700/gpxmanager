@@ -34,7 +34,7 @@ function WindSummaryBadge({ activity }: { activity: Activity | null }) {
     { label: 'dos', pct: s.tailwind, color: WIND_CLASS_COLOR.tailwind },
   ]
   return (
-    <div className="absolute top-16 left-3 md:top-3 z-10 max-w-[calc(100vw-1.5rem)] bg-[var(--color-surface-1)]/90 backdrop-blur rounded-lg border border-[var(--color-border)] text-xs overflow-hidden">
+    <div className="absolute top-3 left-3 z-10 max-w-[calc(100vw-1.5rem)] bg-[var(--color-surface-1)]/90 backdrop-blur rounded-lg border border-[var(--color-border)] text-xs overflow-hidden">
       <button
         onClick={() => setExpanded((v) => !v)}
         className="w-full flex items-center gap-2 px-3 py-2 text-left"
@@ -136,12 +136,12 @@ function applyRoute(
           'crosswind-unfavorable', WIND_CLASS_COLOR['crosswind-unfavorable'],
           'crosswind-favorable',   WIND_CLASS_COLOR['crosswind-favorable'],
           'tailwind',              WIND_CLASS_COLOR.tailwind,
-          '#6366f1',
+          '#ff8a3d',
         ] as unknown as string,
       },
     })
   } else {
-    map.addLayer({ id: 'route-line', type: 'line', source: 'route-geojson', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#6366f1', 'line-width': 4 } })
+    map.addLayer({ id: 'route-line', type: 'line', source: 'route-geojson', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#ff8a3d', 'line-width': 4 } })
   }
 
   markersRef.current.start?.remove()
@@ -158,7 +158,11 @@ function applyRoute(
   map.fitBounds([[minLon, minLat], [maxLon, maxLat]], { padding: 80, animate: false, maxZoom: 14 })
 }
 
-export function MapView({ onOpenSidebar }: { onOpenSidebar: () => void }) {
+export function MapView({ onOpenSorties, onOpenCompare, shortlistedCount }: {
+  onOpenSorties: () => void
+  onOpenCompare: () => void
+  shortlistedCount: number
+}) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const pendingActivityRef = useRef<Activity | null>(null)
@@ -290,7 +294,7 @@ export function MapView({ onOpenSidebar }: { onOpenSidebar: () => void }) {
   const wind = activity?.windFetched ? averageWind(activity) : null
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
+    <div className="flex flex-col flex-1 overflow-hidden pb-14 md:pb-0">
       <div className="relative flex-1">
         <div ref={containerRef} className="w-full h-full" />
 
@@ -298,14 +302,15 @@ export function MapView({ onOpenSidebar }: { onOpenSidebar: () => void }) {
             is loaded, so the empty map reads as a wind app rather than a blank canvas */}
         <WindAnimation direction={wind?.direction ?? 225} speed={wind?.speed ?? 10} theme={theme} />
 
-        <button
-          onClick={onOpenSidebar}
-          title="Ouvrir le menu"
-          className="md:hidden absolute top-3 left-3 z-10 h-11 pl-3 pr-4 flex items-center gap-2 rounded-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white shadow-lg shadow-[var(--color-accent)]/40"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><path d="M3 6h18M3 12h18M3 18h18" strokeLinecap="round" /></svg>
-          <span className="text-sm font-semibold">Menu</span>
-        </button>
+        {shortlistedCount > 0 && (
+          <button
+            onClick={onOpenCompare}
+            title="Ouvrir le comparateur"
+            className="absolute bottom-20 md:bottom-4 right-3 z-10 h-9 pl-2.5 pr-3.5 flex items-center gap-1.5 rounded-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white text-xs font-semibold shadow-lg shadow-[var(--color-accent)]/30"
+          >
+            🏆 {shortlistedCount}
+          </button>
+        )}
 
         <button
           onClick={toggleTheme}
@@ -340,7 +345,7 @@ export function MapView({ onOpenSidebar }: { onOpenSidebar: () => void }) {
                 Importe un GPX ou connecte Strava — on te dira tout de suite si tu pars face au vent.
               </p>
               <button
-                onClick={onOpenSidebar}
+                onClick={onOpenSorties}
                 className="mt-4 bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white rounded-full px-4 py-2 text-sm font-medium shadow"
               >
                 Importer un parcours
@@ -353,7 +358,7 @@ export function MapView({ onOpenSidebar }: { onOpenSidebar: () => void }) {
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 w-[92vw] max-w-md md:w-auto">
             {!activity.windFetched && (
               <span className="flex items-center gap-1.5 text-[10px] text-[var(--color-text-muted)] bg-[var(--color-surface-1)]/90 backdrop-blur rounded-full px-2.5 py-1 border border-[var(--color-border)]">
-                <span className="inline-block w-2.5 h-0.5 rounded-full bg-[#6366f1]" />tracé (vent non chargé)
+                <span className="inline-block w-2.5 h-0.5 rounded-full bg-[var(--color-accent)]" />tracé (vent non chargé)
               </span>
             )}
             <div className="flex flex-wrap items-center justify-center gap-1.5 bg-[var(--color-surface-1)]/95 backdrop-blur rounded-2xl md:rounded-full pl-1 pr-1 py-1 border border-[var(--color-border)] shadow-lg">
