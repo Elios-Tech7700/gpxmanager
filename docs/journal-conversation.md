@@ -107,6 +107,18 @@ Deux directions de refonte proposées en maquette (`/frontend-design`, artifact 
 
 Testé en profondeur (desktop + mobile simulé + vraies données en prod), rien touché à la logique métier (vent, comparateur, dossiers, Strava).
 
+## Comparateur : filtre par dossiers au lieu de l'étoile ⭐ (12/08)
+
+L'utilisateur n'aimait pas devoir marquer chaque sortie individuellement en favori. Remplacé entièrement par un filtre dans le comparateur : des pastilles cliquables "nom du dossier (n)" + "Non classées (n)", sélection multiple, le classement se recalcule automatiquement sur toutes les sorties des dossiers cochés.
+
+- Champ `Activity.shortlisted` supprimé du modèle de données (`types/index.ts`, `gpx-parser.ts`, `storage.ts`, `store/activities.ts` — plus de `toggleShortlist`).
+- Nouveau `src/store/compareFilter.ts` (Zustand, non persisté) : `selectedFolderIds` + `includeUnfiled`, survit à l'ouverture/fermeture du volet/onglet/feuille (state global, pas un state de composant qui se démonte).
+- `CompareSection.tsx` réécrit : pastilles de dossiers en haut, classement en dessous dès 2+ sorties sélectionnées au total.
+- Badge du rail/tab bar/pastille flottante = nombre de sorties actuellement filtrées (plus le nombre d'étoiles).
+- Testé en local (multi-dossiers) et en prod avec les vrais dossiers `test`/`balade` + 12 sorties non classées.
+
+Committé (`abf79aa`), déployé.
+
 ## Décisions et préférences à retenir
 
 - Pas de rotation du secret Strava même après exposition accidentelle en clair dans le chat — décision explicite de l'utilisateur ("non on laisse comme ça").
