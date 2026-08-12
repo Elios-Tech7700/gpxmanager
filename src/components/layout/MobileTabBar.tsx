@@ -28,10 +28,10 @@ function TabItem({ active, onClick, label, badge, children }: {
   )
 }
 
-export function MobileTabBar({ active, onChange, shortlistedCount }: {
+export function MobileTabBar({ active, onChange, compareCount }: {
   active: Tab
   onChange: (tab: Tab) => void
-  shortlistedCount: number
+  compareCount: number
 }) {
   return (
     <nav className="md:hidden fixed inset-x-0 bottom-0 z-40 h-14 flex border-t border-[var(--color-border)] bg-[var(--color-surface-1)]">
@@ -46,7 +46,7 @@ export function MobileTabBar({ active, onChange, shortlistedCount }: {
           <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </TabItem>
-      <TabItem active={active === 'comparer'} onClick={() => onChange('comparer')} label="Comparer" badge={shortlistedCount}>
+      <TabItem active={active === 'comparer'} onClick={() => onChange('comparer')} label="Comparer" badge={compareCount}>
         🏆
       </TabItem>
     </nav>

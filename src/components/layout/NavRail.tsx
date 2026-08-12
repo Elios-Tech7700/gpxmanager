@@ -30,10 +30,10 @@ function RailButton({ active, onClick, title, badge, children }: {
   )
 }
 
-export function NavRail({ activePanel, onToggle, shortlistedCount }: {
+export function NavRail({ activePanel, onToggle, compareCount }: {
   activePanel: Panel | null
   onToggle: (panel: Panel) => void
-  shortlistedCount: number
+  compareCount: number
 }) {
   return (
     <nav className="hidden md:flex w-[52px] shrink-0 flex-col items-center gap-2 border-r border-[var(--color-border)] bg-[var(--color-surface-1)] py-3">
@@ -50,7 +50,7 @@ export function NavRail({ activePanel, onToggle, shortlistedCount }: {
         </svg>
       </RailButton>
 
-      <RailButton active={activePanel === 'comparer'} onClick={() => onToggle('comparer')} title="Comparateur vent" badge={shortlistedCount}>
+      <RailButton active={activePanel === 'comparer'} onClick={() => onToggle('comparer')} title="Comparateur vent" badge={compareCount}>
         🏆
       </RailButton>
     </nav>

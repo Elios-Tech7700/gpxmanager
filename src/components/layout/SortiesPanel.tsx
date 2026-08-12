@@ -18,7 +18,7 @@ function formatDuration(s: number) {
   return h > 0 ? `${h}h${String(m).padStart(2, '0')}` : `${m} min`
 }
 
-function ActivityCard({ activity, active, folders, onSelect, onDelete, onRename, onMove, onDuplicate, onToggleShortlist }: {
+function ActivityCard({ activity, active, folders, onSelect, onDelete, onRename, onMove, onDuplicate }: {
   activity: Activity
   active: boolean
   folders: Folder[]
@@ -27,7 +27,6 @@ function ActivityCard({ activity, active, folders, onSelect, onDelete, onRename,
   onRename: (name: string) => void
   onMove: (folderId: string | null) => void
   onDuplicate: () => void
-  onToggleShortlist: () => void
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(activity.name)
@@ -89,17 +88,6 @@ function ActivityCard({ activity, active, folders, onSelect, onDelete, onRename,
           </p>
         )}
         <div className="flex items-center shrink-0 -mr-2.5 relative">
-          <span
-            role="button"
-            onClick={(e) => { e.stopPropagation(); onToggleShortlist() }}
-            className={clsx(
-              'w-11 h-11 -m-2.5 flex items-center justify-center text-sm transition-colors',
-              activity.shortlisted ? 'text-[var(--color-wind-moderate)]' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]',
-            )}
-            title={activity.shortlisted ? 'Retirer de la présélection' : 'Ajouter à la présélection pour le comparateur'}
-          >
-            {activity.shortlisted ? '⭐' : '☆'}
-          </span>
           <span
             role="button"
             onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v); setMoveSubmenuOpen(false) }}
@@ -253,7 +241,7 @@ function FolderHeader({ folder, count, expanded, onToggle, onRename, onDelete }:
 }
 
 export function SortiesPanel({ onSelectActivity }: { onSelectActivity: () => void }) {
-  const { activities, activeId, setActive, removeActivity, updateActivity, moveActivity, duplicateActivity, toggleShortlist } = useActivities()
+  const { activities, activeId, setActive, removeActivity, updateActivity, moveActivity, duplicateActivity } = useActivities()
   const { folders, addFolder, renameFolder, deleteFolder } = useFolders()
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
   const [creatingFolder, setCreatingFolder] = useState(false)
@@ -279,7 +267,6 @@ export function SortiesPanel({ onSelectActivity }: { onSelectActivity: () => voi
     onRename: (name: string) => updateActivity({ ...a, name }),
     onMove: (folderId: string | null) => moveActivity(a.id, folderId),
     onDuplicate: () => duplicateActivity(a.id),
-    onToggleShortlist: () => toggleShortlist(a.id),
   })
 
   return (

@@ -8,7 +8,7 @@ function centroid(bounds: Activity['bounds']): [string, string] {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-// The comparator can fire several of these concurrently (one per shortlisted route),
+// The comparator can fire several of these concurrently (one per compared route),
 // which occasionally trips Open-Meteo's burst rate limit (429) even well under its
 // documented daily quota. Retry transient 429s with a short backoff instead of
 // surfacing them straight to the user — a real outage still fails after this.

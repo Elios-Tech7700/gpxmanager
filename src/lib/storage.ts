@@ -38,13 +38,12 @@ function deserialize(raw: Record<string, unknown>): Activity {
     time: new Date(p.time as string),
   }))
   return {
-    ...(raw as Omit<Activity, 'points' | 'importedAt' | 'startTime' | 'endTime' | 'folderId' | 'shortlisted'>),
+    ...(raw as Omit<Activity, 'points' | 'importedAt' | 'startTime' | 'endTime' | 'folderId'>),
     points,
     importedAt: new Date(raw.importedAt as string),
     startTime: new Date(raw.startTime as string),
     endTime: new Date(raw.endTime as string),
     folderId: (raw.folderId as string | null | undefined) ?? null,
-    shortlisted: (raw.shortlisted as boolean | undefined) ?? false,
   } as Activity
 }
 

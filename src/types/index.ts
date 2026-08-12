@@ -33,7 +33,6 @@ export interface Activity {
   windFetched: boolean
   bounds: [number, number, number, number] // [minLon, minLat, maxLon, maxLat]
   folderId: string | null
-  shortlisted: boolean
 }
 
 export interface Folder {

@@ -15,7 +15,6 @@ interface ActivitiesState {
   updateActivity: (activity: Activity) => Promise<void>
   moveActivity: (id: string, folderId: string | null) => Promise<void>
   duplicateActivity: (id: string) => Promise<void>
-  toggleShortlist: (id: string) => Promise<void>
 }
 
 export const useActivities = create<ActivitiesState>((set, get) => ({
@@ -68,14 +67,6 @@ export const useActivities = create<ActivitiesState>((set, get) => ({
     const copy: Activity = { ...activity, id: generateId(), name: `${activity.name} (copie)`, importedAt: new Date() }
     await saveActivity(copy)
     set((s) => ({ activities: [copy, ...s.activities], activeId: copy.id }))
-  },
-
-  toggleShortlist: async (id) => {
-    const activity = get().activities.find((a) => a.id === id)
-    if (!activity) return
-    const updated = { ...activity, shortlisted: !activity.shortlisted }
-    await saveActivity(updated)
-    set((s) => ({ activities: s.activities.map((a) => (a.id === id ? updated : a)) }))
   },
 }))
 

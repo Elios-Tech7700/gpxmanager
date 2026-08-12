@@ -7,6 +7,7 @@ import { CompareSection } from '@/components/compare/CompareSection'
 import { MapView } from '@/components/map/MapView'
 import { useActivities } from '@/store/activities'
 import { useFolders } from '@/store/folders'
+import { useCompareFilter, getCompareCandidates } from '@/store/compareFilter'
 
 type Panel = 'sorties' | 'comparer'
 type MobileTab = 'carte' | 'sorties' | 'comparer'
@@ -17,6 +18,7 @@ export default function App() {
   const activities = useActivities((s) => s.activities)
   const setActive = useActivities((s) => s.setActive)
   const initFolders = useFolders((s) => s.init)
+  const { selectedFolderIds, includeUnfiled } = useCompareFilter()
 
   const [activePanel, setActivePanel] = useState<Panel | null>(null)
   const [mobileTab, setMobileTab] = useState<MobileTab>('carte')
@@ -25,7 +27,7 @@ export default function App() {
   useEffect(() => { init() }, [init])
   useEffect(() => { initFolders() }, [initFolders])
 
-  const shortlistedCount = activities.filter((a) => a.shortlisted).length
+  const compareCount = getCompareCandidates(activities, selectedFolderIds, includeUnfiled).length
 
   const togglePanel = (panel: Panel) => setActivePanel((cur) => (cur === panel ? null : panel))
   const openSortiesEverywhere = () => { setActivePanel('sorties'); setMobileTab('sorties') }
@@ -51,7 +53,7 @@ export default function App() {
 
   return (
     <div className="flex h-full bg-[var(--color-surface-0)] overflow-hidden">
-      <NavRail activePanel={activePanel} onToggle={togglePanel} shortlistedCount={shortlistedCount} />
+      <NavRail activePanel={activePanel} onToggle={togglePanel} compareCount={compareCount} />
 
       {activePanel && (
         <FlyoutPanel title={activePanel === 'sorties' ? 'Sorties' : 'Comparateur vent'} onClose={() => setActivePanel(null)}>
@@ -64,7 +66,7 @@ export default function App() {
       )}
 
       <main className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <MapView onOpenSorties={openSortiesEverywhere} onOpenCompare={openCompareEverywhere} shortlistedCount={shortlistedCount} />
+        <MapView onOpenSorties={openSortiesEverywhere} onOpenCompare={openCompareEverywhere} compareCount={compareCount} />
       </main>
 
       {mobileTab !== 'carte' && (
@@ -92,14 +94,15 @@ export default function App() {
 
       {compareSheetOpen && (
         <div className="md:hidden fixed inset-x-0 bottom-14 z-30 max-h-[58vh] overflow-y-auto rounded-t-2xl border-t border-[var(--color-border)] bg-[var(--color-surface-1)] shadow-2xl">
-          <div className="sticky top-0 bg-[var(--color-surface-1)] flex items-center justify-center pt-2 pb-1">
+          <div className="sticky top-0 bg-[var(--color-surface-1)] flex flex-col items-center pt-2 pb-1">
             <span className="w-9 h-1 rounded-full bg-[var(--color-border)]" />
+            <h2 className="text-sm font-semibold text-[var(--color-text-primary)] mt-2">Comparateur vent</h2>
           </div>
           <CompareSection onSelect={selectActivity} />
         </div>
       )}
 
-      <MobileTabBar active={mobileTab} onChange={changeMobileTab} shortlistedCount={shortlistedCount} />
+      <MobileTabBar active={mobileTab} onChange={changeMobileTab} compareCount={compareCount} />
     </div>
   )
 }

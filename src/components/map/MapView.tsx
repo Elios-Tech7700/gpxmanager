@@ -158,10 +158,10 @@ function applyRoute(
   map.fitBounds([[minLon, minLat], [maxLon, maxLat]], { padding: 80, animate: false, maxZoom: 14 })
 }
 
-export function MapView({ onOpenSorties, onOpenCompare, shortlistedCount }: {
+export function MapView({ onOpenSorties, onOpenCompare, compareCount }: {
   onOpenSorties: () => void
   onOpenCompare: () => void
-  shortlistedCount: number
+  compareCount: number
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
@@ -302,13 +302,13 @@ export function MapView({ onOpenSorties, onOpenCompare, shortlistedCount }: {
             is loaded, so the empty map reads as a wind app rather than a blank canvas */}
         <WindAnimation direction={wind?.direction ?? 225} speed={wind?.speed ?? 10} theme={theme} />
 
-        {shortlistedCount > 0 && (
+        {compareCount > 0 && (
           <button
             onClick={onOpenCompare}
             title="Ouvrir le comparateur"
             className="absolute bottom-20 md:bottom-4 right-3 z-10 h-9 pl-2.5 pr-3.5 flex items-center gap-1.5 rounded-full bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white text-xs font-semibold shadow-lg shadow-[var(--color-accent)]/30"
           >
-            🏆 {shortlistedCount}
+            🏆 {compareCount}
           </button>
         )}
 

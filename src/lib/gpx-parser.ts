@@ -100,7 +100,6 @@ export function buildActivity(rawPoints: RawPoint[], name: string, source: Activ
     windFetched: false,
     bounds,
     folderId: null,
-    shortlisted: false,
   }
 }
 
