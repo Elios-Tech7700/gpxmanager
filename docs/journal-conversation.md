@@ -84,6 +84,29 @@ Committé (`fd5b721`), déployé.
 
 **Les 3 vagues de l'audit UX du 10/08 sont maintenant terminées et en production.** Points de vigilance notés dans l'audit (recherche/filtre sur liste longue, vue dédiée aux itinéraires ⭐, score d'effort en double, mode paysage, accessibilité icônes) restent à traiter plus tard, pas d'anticipation nécessaire pour l'instant.
 
+## Fix 429 Open-Meteo (12/08)
+
+Le comparateur envoyait une requête simultanée par itinéraire présélectionné (`Promise.all` sans limite) — avec plusieurs itinéraires ça déclenchait le rate-limit Open-Meteo. Corrigé dans `wind-api.ts`/`wind-math.ts`/`CompareSection.tsx` : retry avec backoff sur 429, requêtes par lots de 3, debounce 400ms sur le sélecteur d'heure du comparateur. Committé (`10e87d5`), déployé.
+
+## Deuxième audit UX + refonte "Plein vent" (12/08)
+
+Nouvel audit (commande `/audit-ux` créée entre-temps) sur l'organisation/confiance des données, ouvert directement sur le vrai déploiement (pas de captures fournies) : dossiers en menu texte pas intuitif, cibles tactiles mesurées à 24-28px (norme 44px), comparateur sans limite qui avalait toute la sidebar avec les 8 vraies présélections du compte, incohérence de casse des dossiers (MAJUSCULES vs minuscules), stockage 100% local par appareil (IndexedDB, pas de compte, Strava = import ponctuel pas sync).
+
+Deux directions de refonte proposées en maquette (`/frontend-design`, artifact ancré sur le vrai compte) : **Copilote** (sidebar en 3 onglets) et **Plein vent** (rail d'icônes + volets flottants + carte toujours pleine largeur). L'utilisateur a choisi **Plein vent**.
+
+**Implémenté et déployé** (commit `2c4b490`) :
+- Nouvelle palette : fond `#0A1310`, accent `#FF8A3D` (remplace l'indigo `#6366f1`), icônes rail `#6FAE8F` — couleurs vent (face/dos/travers) inchangées, c'est le cœur métier.
+- `NavRail.tsx` (52px, desktop) : icônes Sorties / Comparer (badge ⭐), la carte ne rétrécit jamais.
+- `FlyoutPanel.tsx` : volet flottant par-dessus la carte (desktop uniquement), fermeture au clic sur l'icône active ou sur ✕.
+- `MobileTabBar.tsx` : barre d'onglets fixe en bas (Carte / Sorties / Comparer) remplace le tiroir + bouton "Menu".
+- `SortiesPanel.tsx` (ex-`Sidebar.tsx`) : contenu identique (import/Strava/dossiers/activités) mais **sans le comparateur**, qui a maintenant son propre volet/onglet dédié — résout structurellement le débordement de la vague précédente (testé avec les 8 vraies présélections en prod, tient sans déborder).
+- Pastille flottante "🏆 N" sur la carte (ouvre le volet desktop ou une feuille `bottom sheet` mobile).
+- Cibles ⭐/⋯ et lignes de menu passées à 44×44px exactement (mesuré en DOM, desktop et mobile).
+- Heure ajoutée sur chaque carte (`d MMM yyyy, HH:mm`) pour distinguer les doublons.
+- Casse des dossiers uniformisée (retrait de l'`uppercase` CSS sur le nom).
+
+Testé en profondeur (desktop + mobile simulé + vraies données en prod), rien touché à la logique métier (vent, comparateur, dossiers, Strava).
+
 ## Décisions et préférences à retenir
 
 - Pas de rotation du secret Strava même après exposition accidentelle en clair dans le chat — décision explicite de l'utilisateur ("non on laisse comme ça").
