@@ -32,3 +32,31 @@ export function buildStravaId(kind: 'activity' | 'route', id: string): string {
 export function computeFingerprint(activity: Pick<Activity, 'name' | 'distanceMeters' | 'points'>): string {
   return `${activity.name}|${Math.round(activity.distanceMeters)}|${activity.points.length}`
 }
+
+// Retroactive cleanup: groups activities already sitting in the library that
+// share a fingerprint — i.e. duplicates imported before this dedup existed
+// (or from before the app tracked fingerprints at all, if that field is unset
+// on old records — those are simply never grouped, nothing to compare them on).
+export function findDuplicateGroups(activities: Activity[]): Activity[][] {
+  const byFingerprint = new Map<string, Activity[]>()
+  for (const activity of activities) {
+    if (!activity.fingerprint) continue
+    const group = byFingerprint.get(activity.fingerprint)
+    if (group) group.push(activity)
+    else byFingerprint.set(activity.fingerprint, [activity])
+  }
+  return [...byFingerprint.values()].filter((group) => group.length > 1)
+}
+
+// Which copy survives a cleanup — prefers one already filed in a folder (real
+// user effort not to be discarded), then one with wind already loaded, then
+// simply the earliest import.
+export function pickKeeper(group: Activity[]): Activity {
+  return group.reduce((best, candidate) => {
+    if (best.folderId && !candidate.folderId) return best
+    if (candidate.folderId && !best.folderId) return candidate
+    if (best.windFetched && !candidate.windFetched) return best
+    if (candidate.windFetched && !best.windFetched) return candidate
+    return candidate.importedAt < best.importedAt ? candidate : best
+  })
+}

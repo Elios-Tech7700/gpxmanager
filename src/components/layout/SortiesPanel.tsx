@@ -4,6 +4,7 @@ import { useActivities } from '@/store/activities'
 import { useFolders } from '@/store/folders'
 import { DropZone } from '@/components/import/DropZone'
 import { AutoOrganizeButton } from '@/components/import/AutoOrganizeButton'
+import { DuplicateCleanupBanner } from '@/components/import/DuplicateCleanupBanner'
 import { ActivityCard } from '@/components/layout/ActivityCard'
 import { FolderHeader } from '@/components/layout/FolderHeader'
 import type { Activity } from '@/types'
@@ -65,6 +66,7 @@ export function SortiesPanel({ onSelectActivity }: { onSelectActivity: () => voi
         <StravaImport />
       </Suspense>
       <AutoOrganizeButton />
+      <DuplicateCleanupBanner />
 
       <div className="space-y-0.5">
         <div className="flex items-center justify-between px-1">

@@ -6,31 +6,60 @@ import clsx from 'clsx'
 
 export function DropZone() {
   const [dragging, setDragging] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
+  const [hasFailure, setHasFailure] = useState(false)
   const [importing, setImporting] = useState(false)
   const addActivity = useActivities((s) => s.addActivity)
 
   const processFiles = useCallback(
     async (files: File[]) => {
-      setError(null)
+      setMessage(null)
+      setHasFailure(false)
       setImporting(true)
       const gpxFiles = files.filter((f) => f.name.toLowerCase().endsWith('.gpx'))
       if (gpxFiles.length === 0) {
-        setError('Aucun fichier .gpx détecté.')
+        setMessage('Aucun fichier .gpx détecté.')
+        setHasFailure(true)
         setImporting(false)
         return
       }
+
+      // Seeded from the store, then extended locally as files import — catches
+      // a duplicate against activities already saved AND against another file
+      // in this same drop (e.g. the same GPX dragged in twice at once).
+      const knownFingerprints = new Set(
+        useActivities.getState().activities.map((a) => a.fingerprint).filter((f): f is string => Boolean(f)),
+      )
+
+      let imported = 0
+      let duplicates = 0
+      const failures: string[] = []
+
       for (const file of gpxFiles) {
         try {
           const text = await file.text()
           const parsed = parseGpx(text, file.name)
+          if (parsed.fingerprint && knownFingerprints.has(parsed.fingerprint)) {
+            duplicates++
+            continue
+          }
           // Only the route geometry/pacing from the GPX matters — plan the ride for now by default
           const activity = shiftActivityStart(parsed, new Date())
           await addActivity(activity)
+          if (parsed.fingerprint) knownFingerprints.add(parsed.fingerprint)
+          imported++
         } catch (e) {
-          setError(e instanceof Error ? e.message : `Erreur sur ${file.name}`)
+          failures.push(`${file.name} : ${e instanceof Error ? e.message : 'erreur inconnue'}`)
         }
       }
+
+      const parts: string[] = []
+      if (imported > 0) parts.push(`${imported} importée${imported === 1 ? '' : 's'}`)
+      if (duplicates > 0) parts.push(`${duplicates} déjà présente${duplicates === 1 ? '' : 's'} (ignorée${duplicates === 1 ? '' : 's'})`)
+      if (failures.length > 0) parts.push(`${failures.length} en échec — ${failures.join(' · ')}`)
+      setMessage(parts.length > 0 ? `${parts.join(', ')}.` : null)
+      setHasFailure(failures.length > 0)
+
       setImporting(false)
     },
     [addActivity],
@@ -100,8 +129,10 @@ export function DropZone() {
         </div>
       </label>
 
-      {error && (
-        <p className="mt-2 text-xs text-[var(--color-wind-strong)] px-1">{error}</p>
+      {message && (
+        <p className={clsx('mt-2 text-xs px-1', hasFailure ? 'text-[var(--color-wind-strong)]' : 'text-[var(--color-text-secondary)]')}>
+          {message}
+        </p>
       )}
     </div>
   )
