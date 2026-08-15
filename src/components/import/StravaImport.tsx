@@ -27,7 +27,7 @@ export function StravaImport() {
     const state = params.get('state')
     window.history.replaceState({}, '', window.location.pathname)
     if (!consumeOAuthState(state)) {
-      setError('Connexion Strava refusée (état de sécurité invalide, réessaie).')
+      setError('La connexion Strava a expiré, réessaie.')
       return
     }
     exchangeCode(code)

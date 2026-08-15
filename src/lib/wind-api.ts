@@ -28,7 +28,7 @@ async function fetchJson<T>(url: string, attempt = 0): Promise<T> {
     await sleep(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 800 * 2 ** attempt)
     return fetchJson<T>(url, attempt + 1)
   }
-  if (!res.ok) throw new Error(`Open-Meteo error: ${res.status}`)
+  if (!res.ok) throw new Error('Le service météo est momentanément indisponible. Réessaie dans quelques instants.')
   return res.json()
 }
 
