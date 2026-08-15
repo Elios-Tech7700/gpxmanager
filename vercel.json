@@ -1,6 +1,9 @@
 {
   "rewrites": [
     { "source": "/presentation", "destination": "/presentation/index.html" },
-    { "source": "/tuto", "destination": "/tuto/index.html" }
+    { "source": "/tuto", "destination": "/tuto/index.html" },
+    { "source": "/mentions-legales", "destination": "/mentions-legales/index.html" },
+    { "source": "/confidentialite", "destination": "/confidentialite/index.html" },
+    { "source": "/cgu", "destination": "/cgu/index.html" }
   ]
 }
