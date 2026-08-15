@@ -1,21 +1,16 @@
 import { useEffect, useState } from 'react'
-import { format } from 'date-fns'
 import { useShallow } from 'zustand/shallow'
 import { useActivities } from '@/store/activities'
 import { useFolders } from '@/store/folders'
 import { useCompareFilter, getCompareCandidates } from '@/store/compareFilter'
 import { roundUpToHalfHour } from '@/lib/schedule'
+import { datetimeLocalBounds, toDatetimeLocalValue } from '@/lib/datetime-local'
+import { formatDist } from '@/lib/format'
 import { rankByWind, effortColor, effortLabel, type EffortScore } from '@/lib/wind-math'
 import type { Activity } from '@/types'
 import clsx from 'clsx'
 
-const DATETIME_LOCAL_FORMAT = "yyyy-MM-dd'T'HH:mm"
-const MAX_FORECAST_DAYS = 15
 const MIN_CANDIDATES = 2
-
-function formatDist(m: number) {
-  return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`
-}
 
 export function CompareSection({ onSelect }: { onSelect: (id: string) => void }) {
   const activities = useActivities((s) => s.activities)
@@ -32,8 +27,9 @@ export function CompareSection({ onSelect }: { onSelect: (id: string) => void })
 
   const candidates = getCompareCandidates(activities, selectedFolderIds, includeUnfiled)
   const unfiledCount = activities.filter((a) => !a.folderId).length
+  const bounds = datetimeLocalBounds()
 
-  const [targetInput, setTargetInput] = useState(() => format(roundUpToHalfHour(new Date()), DATETIME_LOCAL_FORMAT))
+  const [targetInput, setTargetInput] = useState(() => toDatetimeLocalValue(roundUpToHalfHour(new Date())))
   const [debouncedTarget, setDebouncedTarget] = useState(targetInput)
   // Ranking results are kept in local state only — earlier versions persisted every
   // ranked candidate via updateActivity, which rewrote each one's startTime/points
@@ -139,8 +135,8 @@ export function CompareSection({ onSelect }: { onSelect: (id: string) => void })
             type="datetime-local"
             value={targetInput}
             step={1800}
-            min={format(new Date(), DATETIME_LOCAL_FORMAT)}
-            max={format(new Date(Date.now() + MAX_FORECAST_DAYS * 86400000), DATETIME_LOCAL_FORMAT)}
+            min={bounds.min}
+            max={bounds.max}
             onChange={(e) => setTargetInput(e.target.value)}
             className="w-full text-sm bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-2.5 py-1.5 outline-none text-[var(--color-text-primary)]"
           />

@@ -1,15 +1,19 @@
-import { useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { NavRail } from '@/components/layout/NavRail'
 import { FlyoutPanel } from '@/components/layout/FlyoutPanel'
 import { MobileTabBar } from '@/components/layout/MobileTabBar'
-import { SortiesPanel } from '@/components/layout/SortiesPanel'
-import { CompareSection } from '@/components/compare/CompareSection'
 import { MapView } from '@/components/map/MapView'
 import { useActivities } from '@/store/activities'
 import { useFolders } from '@/store/folders'
 import { useCompareFilter, getCompareCandidates } from '@/store/compareFilter'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useShallow } from 'zustand/shallow'
+
+// The map (MapView) is the landing view and stays eager. Both flyout panels
+// only ever mount once the user opens them, so they're split out of the main
+// bundle instead of loading upfront on every visit.
+const SortiesPanel = lazy(() => import('@/components/layout/SortiesPanel').then((m) => ({ default: m.SortiesPanel })))
+const CompareSection = lazy(() => import('@/components/compare/CompareSection').then((m) => ({ default: m.CompareSection })))
 
 type Panel = 'sorties' | 'comparer'
 // Only meaningful for 'comparer' on mobile: the FAB on the map opens a partial
@@ -93,9 +97,13 @@ export default function App() {
   }
 
   const panelTitle = activePanel === 'sorties' ? 'Sorties' : 'Comparateur vent'
-  const panelBody = activePanel === 'sorties'
-    ? <SortiesPanel onSelectActivity={closePanel} />
-    : <CompareSection onSelect={selectActivity} />
+  const panelBody = (
+    <Suspense fallback={null}>
+      {activePanel === 'sorties'
+        ? <SortiesPanel onSelectActivity={closePanel} />
+        : <CompareSection onSelect={selectActivity} />}
+    </Suspense>
+  )
 
   return (
     <div className="flex h-full bg-[var(--color-surface-0)] overflow-hidden">
@@ -132,7 +140,9 @@ export default function App() {
             <button onClick={closePanel} className="w-9 h-1 rounded-full bg-[var(--color-border)]" aria-label="Fermer" />
             <h2 className="text-sm font-semibold text-[var(--color-text-primary)] mt-2">Comparateur vent</h2>
           </div>
-          <CompareSection onSelect={selectActivity} />
+          <Suspense fallback={null}>
+            <CompareSection onSelect={selectActivity} />
+          </Suspense>
         </div>
       )}
 

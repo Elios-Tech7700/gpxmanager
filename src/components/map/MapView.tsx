@@ -1,189 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { format } from 'date-fns'
 import { useActiveActivity, useActivities } from '@/store/activities'
-import { enrichActivityWithWind, activityWindSummary, averageWind, WIND_CLASS_COLOR, computeEffortScore, effortLabel, effortColor } from '@/lib/wind-math'
+import { enrichActivityWithWind, averageWind } from '@/lib/wind-math'
 import { shiftActivityStart, roundUpToHalfHour } from '@/lib/schedule'
 import { reverseActivity } from '@/lib/gpx-parser'
+import { toDatetimeLocalValue } from '@/lib/datetime-local'
 import { WindForecast } from '@/components/timeline/WindForecast'
 import { WindAnimation } from '@/components/map/WindAnimation'
+import { WindSummaryBadge } from '@/components/map/WindSummaryBadge'
+import { TimeControls } from '@/components/map/TimeControls'
+import { applyRoute, MAP_STYLES, THEME_STORAGE_KEY, type MapTheme, type RouteMarkersRef } from '@/components/map/mapRoute'
 import type { Activity } from '@/types'
-import clsx from 'clsx'
-
-const DATETIME_LOCAL_FORMAT = "yyyy-MM-dd'T'HH:mm"
-const MAX_FORECAST_DAYS = 15
-
-const MAP_STYLES = {
-  dark: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
-  light: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
-} as const
-type MapTheme = keyof typeof MAP_STYLES
-const CASING_COLOR: Record<MapTheme, string> = { dark: '#ffffff', light: '#0f172a' }
-const THEME_STORAGE_KEY = 'gpxmanager-map-theme'
-
-function WindSummaryBadge({ activity }: { activity: Activity | null }) {
-  const [expanded, setExpanded] = useState(false)
-  if (!activity?.windFetched) return null
-  const s = activityWindSummary(activity)
-  const effort = computeEffortScore(activity)
-  const rows: { label: string; pct: number; color: string }[] = [
-    { label: 'face', pct: s.headwind, color: WIND_CLASS_COLOR.headwind },
-    { label: 'travers défav.', pct: s.crosswindUnfavorable, color: WIND_CLASS_COLOR['crosswind-unfavorable'] },
-    { label: 'travers favo.', pct: s.crosswindFavorable, color: WIND_CLASS_COLOR['crosswind-favorable'] },
-    { label: 'dos', pct: s.tailwind, color: WIND_CLASS_COLOR.tailwind },
-  ]
-  return (
-    <div className="absolute top-3 left-3 z-10 max-w-[calc(100vw-1.5rem)] bg-[var(--color-surface-1)]/90 backdrop-blur rounded-lg border border-[var(--color-border)] text-xs overflow-hidden">
-      <button
-        onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-center gap-2 px-3 py-2 text-left"
-      >
-        {effort ? (
-          <>
-            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: effortColor(effort.total) }} />
-            <span className="font-semibold shrink-0" style={{ color: effortColor(effort.total) }}>{effort.total}/100</span>
-            <span className="text-[var(--color-text-muted)] truncate">· {effortLabel(effort.total)}</span>
-          </>
-        ) : (
-          <span className="text-[var(--color-text-muted)] font-medium uppercase tracking-wider text-[10px]">Résumé vent</span>
-        )}
-        <svg
-          className={clsx('ml-auto shrink-0 text-[var(--color-text-muted)] transition-transform', expanded && 'rotate-180')}
-          width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-        >
-          <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
-      {expanded && (
-        <div className="px-3 pb-2.5 pt-2 space-y-1.5 border-t border-[var(--color-border)]">
-          {effort && (
-            <div className="space-y-1 pb-1 border-b border-[var(--color-border)]">
-              <div className="flex items-center gap-2">
-                <div className="flex-1 h-1.5 rounded-full bg-[var(--color-surface-3)] overflow-hidden">
-                  <div className="h-full rounded-full transition-all" style={{ width: `${effort.total}%`, backgroundColor: effortColor(effort.total) }} />
-                </div>
-              </div>
-              <p className="text-[var(--color-text-muted)]">
-                Effort {effortLabel(effort.total).toLowerCase()} — vent {effort.wind}, dénivelé {effort.climb}
-              </p>
-            </div>
-          )}
-          <div className="space-y-1">
-            {rows.map((r) => (
-              <div key={r.label} className="flex items-center gap-1.5">
-                <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: r.color }} />
-                <span className="text-[var(--color-text-secondary)] w-24">{r.label}</span>
-                <span className="font-medium" style={{ color: r.color }}>{r.pct}%</span>
-              </div>
-            ))}
-          </div>
-          <p className="text-[var(--color-text-muted)] pt-0.5 border-t border-[var(--color-border)]">Moy. {s.avgSpeed} km/h</p>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function buildWindSegments(activity: Activity) {
-  return {
-    type: 'FeatureCollection' as const,
-    features: activity.points.slice(0, -1).map((point, i) => ({
-      type: 'Feature' as const,
-      properties: { windClass: point.windRelative?.class ?? 'crosswind-unfavorable' },
-      geometry: {
-        type: 'LineString' as const,
-        coordinates: [
-          [point.lon, point.lat],
-          [activity.points[i + 1].lon, activity.points[i + 1].lat],
-        ],
-      },
-    })),
-  }
-}
-
-// Redraws the route. Sources/layers are only torn down and rebuilt when they
-// don't exist yet (fresh map/style) — a wind recalculation on the SAME route
-// (activity.id unchanged) reuses the existing sources via setData(), so it
-// doesn't flash-rebuild the whole layer stack or fight the user's zoom.
-// `refit` gates fitBounds separately: only pass true when the route itself
-// changed, never on a same-route wind recolor.
-function applyRoute(
-  map: maplibregl.Map,
-  activity: Activity,
-  theme: MapTheme,
-  markersRef: { current: { start: maplibregl.Marker | null; end: maplibregl.Marker | null } },
-  refit: boolean,
-) {
-  const coords = activity.points.map((p) => [p.lon, p.lat])
-  const lineGeometry = {
-    type: 'Feature' as const,
-    properties: {},
-    geometry: { type: 'LineString' as const, coordinates: coords },
-  }
-
-  const plainSource = map.getSource('route-geojson') as maplibregl.GeoJSONSource | undefined
-  if (plainSource) {
-    plainSource.setData(lineGeometry)
-  } else {
-    map.addSource('route-geojson', { type: 'geojson', data: lineGeometry })
-    map.addLayer({ id: 'route-casing', type: 'line', source: 'route-geojson', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': CASING_COLOR[theme], 'line-width': 8, 'line-opacity': 0.25 } })
-  }
-
-  if (activity.windFetched) {
-    // tolerance: 0 — the source is thousands of tiny 2-point segments; MapLibre's
-    // default tile simplification collapses most of them to nothing when zoomed out
-    const windSource = map.getSource('route-wind') as maplibregl.GeoJSONSource | undefined
-    if (windSource) {
-      windSource.setData(buildWindSegments(activity))
-    } else {
-      map.addSource('route-wind', { type: 'geojson', data: buildWindSegments(activity), tolerance: 0 })
-      map.addLayer({
-        id: 'route-wind-line',
-        type: 'line',
-        source: 'route-wind',
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: {
-          'line-width': 4,
-          'line-color': ['match', ['get', 'windClass'],
-            'headwind',              WIND_CLASS_COLOR.headwind,
-            'crosswind-unfavorable', WIND_CLASS_COLOR['crosswind-unfavorable'],
-            'crosswind-favorable',   WIND_CLASS_COLOR['crosswind-favorable'],
-            'tailwind',              WIND_CLASS_COLOR.tailwind,
-            '#ff8a3d',
-          ] as unknown as string,
-        },
-      })
-    }
-    if (map.getLayer('route-line')) map.removeLayer('route-line')
-  } else {
-    if (map.getLayer('route-wind-line')) map.removeLayer('route-wind-line')
-    if (map.getSource('route-wind')) map.removeSource('route-wind')
-    if (!map.getLayer('route-line')) {
-      map.addLayer({ id: 'route-line', type: 'line', source: 'route-geojson', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#ff8a3d', 'line-width': 4 } })
-    }
-  }
-
-  const start = activity.points[0]
-  const end = activity.points[activity.points.length - 1]
-  if (markersRef.current.start && markersRef.current.end) {
-    markersRef.current.start.setLngLat([start.lon, start.lat])
-    markersRef.current.end.setLngLat([end.lon, end.lat])
-  } else {
-    markersRef.current.start?.remove()
-    markersRef.current.end?.remove()
-    markersRef.current = {
-      start: new maplibregl.Marker({ color: '#86efac' }).setLngLat([start.lon, start.lat]).addTo(map),
-      end: new maplibregl.Marker({ color: '#f87171' }).setLngLat([end.lon, end.lat]).addTo(map),
-    }
-  }
-
-  if (refit) {
-    const [minLon, minLat, maxLon, maxLat] = activity.bounds
-    // Use animate:false — fitBounds with animation blocks before map is fully loaded
-    map.fitBounds([[minLon, minLat], [maxLon, maxLat]], { padding: 80, animate: false, maxZoom: 14 })
-  }
-}
 
 export function MapView({ onOpenSorties, onOpenCompare, compareCount }: {
   onOpenSorties: () => void
@@ -193,7 +21,7 @@ export function MapView({ onOpenSorties, onOpenCompare, compareCount }: {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const pendingActivityRef = useRef<Activity | null>(null)
-  const routeMarkersRef = useRef<{ start: maplibregl.Marker | null; end: maplibregl.Marker | null }>({ start: null, end: null })
+  const routeMarkersRef: RouteMarkersRef = useRef({ start: null, end: null })
   // Which activity.id the camera was last fitted to — fitBounds only re-runs when
   // this changes, so a same-route wind recalc doesn't reset the user's zoom/pan.
   const lastFittedIdRef = useRef<string | null>(null)
@@ -205,8 +33,7 @@ export function MapView({ onOpenSorties, onOpenCompare, compareCount }: {
   const updateActivity = useActivities((s) => s.updateActivity)
   const [loadingWind, setLoadingWind] = useState(false)
   const [windError, setWindError] = useState<string | null>(null)
-  const [plannedAt, setPlannedAt] = useState(() => format(new Date(), DATETIME_LOCAL_FORMAT))
-  const [timeControlsOpen, setTimeControlsOpen] = useState(false)
+  const [plannedAt, setPlannedAt] = useState(() => toDatetimeLocalValue(new Date()))
   const [theme, setTheme] = useState<MapTheme>(() => {
     const stored = localStorage.getItem(THEME_STORAGE_KEY)
     return stored === 'light' || stored === 'dark' ? stored : 'dark'
@@ -220,10 +47,10 @@ export function MapView({ onOpenSorties, onOpenCompare, compareCount }: {
   useEffect(() => {
     if (!activity) return
     if (activity.windFetched) {
-      setPlannedAt(format(activity.startTime, DATETIME_LOCAL_FORMAT))
+      setPlannedAt(toDatetimeLocalValue(activity.startTime))
     } else {
       const target = roundUpToHalfHour(new Date())
-      setPlannedAt(format(target, DATETIME_LOCAL_FORMAT))
+      setPlannedAt(toDatetimeLocalValue(target))
       handleLoadWind(target)
     }
   }, [activity?.id])
@@ -310,7 +137,7 @@ export function MapView({ onOpenSorties, onOpenCompare, compareCount }: {
 
   const commitPlannedAt = (target: Date) => {
     if (Number.isNaN(target.getTime())) return
-    setPlannedAt(format(target, DATETIME_LOCAL_FORMAT))
+    setPlannedAt(toDatetimeLocalValue(target))
     handleLoadWind(target)
   }
 
@@ -398,84 +225,15 @@ export function MapView({ onOpenSorties, onOpenCompare, compareCount }: {
         )}
 
         {activity && (
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 w-[92vw] max-w-md md:w-auto">
-            {!activity.windFetched && (
-              <span className="flex items-center gap-1.5 text-[10px] text-[var(--color-text-muted)] bg-[var(--color-surface-1)]/90 backdrop-blur rounded-full px-2.5 py-1 border border-[var(--color-border)]">
-                <span className="inline-block w-2.5 h-0.5 rounded-full bg-[var(--color-accent)]" />tracé (vent non chargé)
-              </span>
-            )}
-            <div className="flex flex-wrap items-center justify-center gap-1.5 bg-[var(--color-surface-1)]/95 backdrop-blur rounded-2xl md:rounded-full pl-1 pr-1 py-1 border border-[var(--color-border)] shadow-lg">
-              {timeControlsOpen ? (
-                <>
-                  <button
-                    onClick={() => shiftPlannedAt(-30)}
-                    disabled={loadingWind}
-                    title="-30 min"
-                    className="w-6 h-6 flex items-center justify-center rounded-full text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-3)] hover:text-[var(--color-text-primary)] shrink-0 disabled:opacity-40"
-                  >
-                    −
-                  </button>
-                  <input
-                    type="datetime-local"
-                    value={plannedAt}
-                    step={1800}
-                    min={format(new Date(), DATETIME_LOCAL_FORMAT)}
-                    max={format(new Date(Date.now() + MAX_FORECAST_DAYS * 86400000), DATETIME_LOCAL_FORMAT)}
-                    onChange={(e) => commitPlannedAt(new Date(e.target.value))}
-                    className="bg-transparent text-xs text-[var(--color-text-primary)] outline-none"
-                  />
-                  <button
-                    onClick={() => shiftPlannedAt(30)}
-                    disabled={loadingWind}
-                    title="+30 min"
-                    className="w-6 h-6 flex items-center justify-center rounded-full text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-3)] hover:text-[var(--color-text-primary)] shrink-0 disabled:opacity-40"
-                  >
-                    +
-                  </button>
-                  <button
-                    onClick={() => shiftPlannedAt(60)}
-                    disabled={loadingWind}
-                    title="+1 heure"
-                    className="text-[11px] px-1.5 h-6 flex items-center justify-center rounded-full text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-3)] hover:text-[var(--color-text-primary)] shrink-0 disabled:opacity-40"
-                  >
-                    +1h
-                  </button>
-                  <button
-                    onClick={() => setTimeControlsOpen(false)}
-                    title="Fermer"
-                    className="w-6 h-6 flex items-center justify-center rounded-full text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-3)] hover:text-[var(--color-text-primary)] shrink-0"
-                  >
-                    ✕
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => setTimeControlsOpen(true)}
-                  className="flex items-center gap-1 px-3 h-6 rounded-full text-xs font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-surface-3)] shrink-0"
-                >
-                  {format(new Date(plannedAt), 'HH:mm')}
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                </button>
-              )}
-              <button
-                onClick={() => handleLoadWind()}
-                disabled={loadingWind}
-                className={clsx(
-                  'flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all shrink-0',
-                  loadingWind
-                    ? 'bg-[var(--color-surface-3)] text-[var(--color-text-muted)] cursor-wait'
-                    : 'bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white shadow shadow-[var(--color-accent)]/30',
-                )}
-              >
-                {loadingWind ? (
-                  <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Chargement…</>
-                ) : (
-                  <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" strokeLinecap="round" strokeLinejoin="round"/></svg>{activity.windFetched ? 'Recalculer' : 'Charger le vent'}</>
-                )}
-              </button>
-            </div>
-            {windError && <p className="mt-1 text-xs text-[var(--color-wind-strong)] text-center">{windError}</p>}
-          </div>
+          <TimeControls
+            plannedAt={plannedAt}
+            windFetched={activity.windFetched}
+            loading={loadingWind}
+            error={windError}
+            onCommit={commitPlannedAt}
+            onShift={shiftPlannedAt}
+            onLoadWind={() => handleLoadWind()}
+          />
         )}
 
         <WindSummaryBadge activity={activity} />
