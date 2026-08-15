@@ -1,0 +1,4 @@
+# Ces pages publiques embarquent des captures en base64 (poids en octets énorme),
+# ce qui fausse les statistiques de langage de GitHub. On les exclut du calcul
+# pour que React/TypeScript restent représentatifs du vrai contenu du projet.
+public/**/*.html linguist-generated=true
