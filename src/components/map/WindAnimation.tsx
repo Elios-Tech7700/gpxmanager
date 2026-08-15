@@ -18,28 +18,42 @@ interface Particle {
 export function WindAnimation({ direction, speed, theme }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const particlesRef = useRef<Particle[]>([])
+  const sizeRef = useRef({ width: 0, height: 0 })
 
+  // Sizing lives in its own effect, keyed only to actual layout changes — a
+  // ResizeObserver on the canvas itself (not window.resize) also catches panel
+  // mount/collapse, which changes the map's on-screen size without a window resize.
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas || direction === null) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    let width = 0
-    let height = 0
+    if (!canvas) return
     const dpr = window.devicePixelRatio || 1
 
     const resize = () => {
       const rect = canvas.getBoundingClientRect()
-      width = canvas.width = rect.width * dpr
-      height = canvas.height = rect.height * dpr
+      const width = (canvas.width = rect.width * dpr)
+      const height = (canvas.height = rect.height * dpr)
+      sizeRef.current = { width, height }
       particlesRef.current = Array.from({ length: PARTICLE_COUNT }, () => ({
         x: Math.random() * width,
         y: Math.random() * height,
       }))
     }
     resize()
-    window.addEventListener('resize', resize)
+
+    const observer = new ResizeObserver(resize)
+    observer.observe(canvas)
+    return () => observer.disconnect()
+  }, [])
+
+  // Direction/speed/theme changes only affect how the SAME particles are drawn
+  // and steered from here on — they no longer get reseeded (teleported) every
+  // time a wind recalculation runs, which is unrelated to canvas size.
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas || direction === null) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const dpr = window.devicePixelRatio || 1
 
     // Direction the wind blows TOWARD (met convention gives the FROM direction).
     // North is "up" on the map, so dy is negative for a northward component.
@@ -55,6 +69,7 @@ export function WindAnimation({ direction, speed, theme }: Props) {
 
     let raf: number
     const tick = () => {
+      const { width, height } = sizeRef.current
       ctx.clearRect(0, 0, width, height)
       ctx.lineCap = 'round'
 
@@ -83,10 +98,7 @@ export function WindAnimation({ direction, speed, theme }: Props) {
     }
     raf = requestAnimationFrame(tick)
 
-    return () => {
-      cancelAnimationFrame(raf)
-      window.removeEventListener('resize', resize)
-    }
+    return () => cancelAnimationFrame(raf)
   }, [direction, speed, theme])
 
   if (direction === null) return null

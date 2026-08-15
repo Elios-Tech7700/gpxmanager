@@ -171,19 +171,33 @@ export function computeEffortScore(activity: Activity): EffortScore | null {
 // burst rate limit (429), even with the retry/backoff already in wind-api.ts.
 const RANK_CONCURRENCY = 3
 
+export interface RankByWindResult {
+  results: { activity: Activity; score: EffortScore }[]
+  // Candidates whose wind fetch failed — one bad route (network blip, invalid
+  // bounds) no longer voids the whole comparison via Promise.all.
+  failedCount: number
+}
+
 export async function rankByWind(
   activities: Activity[],
   target: Date,
-): Promise<{ activity: Activity; score: EffortScore }[]> {
-  const enriched: Activity[] = []
+): Promise<RankByWindResult> {
+  const settled: PromiseSettledResult<Activity>[] = []
   for (let i = 0; i < activities.length; i += RANK_CONCURRENCY) {
     const batch = activities.slice(i, i + RANK_CONCURRENCY)
-    enriched.push(...await Promise.all(batch.map((a) => enrichActivityWithWind(shiftActivityStart(a, target)))))
+    settled.push(...await Promise.allSettled(batch.map((a) => enrichActivityWithWind(shiftActivityStart(a, target)))))
   }
+  const enriched = settled
+    .filter((r): r is PromiseFulfilledResult<Activity> => r.status === 'fulfilled')
+    .map((r) => r.value)
+  const failedCount = settled.length - enriched.length
+
   const results = enriched
     .map((activity) => ({ activity, score: computeEffortScore(activity) }))
     .filter((r): r is { activity: Activity; score: EffortScore } => r.score !== null)
-  return results.sort((a, b) => a.score.total - b.score.total)
+  results.sort((a, b) => a.score.total - b.score.total)
+
+  return { results, failedCount }
 }
 
 // Approximate wind-only effort for a candidate forecast hour — reuses the route's

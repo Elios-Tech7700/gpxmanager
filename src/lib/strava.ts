@@ -28,7 +28,9 @@ interface StravaStreamsResponse {
 
 export async function fetchStravaActivities(): Promise<StravaActivitySummary[]> {
   const token = await ensureValidToken()
-  const res = await fetch(`/api/strava/activities?access_token=${token}`)
+  // Bearer header, not a query param — Vercel logs full request URLs, and this
+  // token grants activity:read_all (home-location GPS included).
+  const res = await fetch('/api/strava/activities', { headers: { Authorization: `Bearer ${token}` } })
   if (!res.ok) throw new Error('Impossible de récupérer les activités Strava.')
   const data: StravaActivityApiItem[] = await res.json()
   return data
@@ -38,7 +40,9 @@ export async function fetchStravaActivities(): Promise<StravaActivitySummary[]> 
 
 export async function importStravaActivity(summary: StravaActivitySummary): Promise<Activity> {
   const token = await ensureValidToken()
-  const res = await fetch(`/api/strava/activities/${summary.id}/streams?access_token=${token}`)
+  const res = await fetch(`/api/strava/activities/${summary.id}/streams`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
   if (!res.ok) throw new Error('Impossible de récupérer le tracé de cette activité.')
   const streams: StravaStreamsResponse = await res.json()
 

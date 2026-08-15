@@ -6,32 +6,34 @@ const DB_VERSION = 2
 const ACTIVITIES_STORE = 'activities'
 const FOLDERS_STORE = 'folders'
 
-let db: IDBPDatabase | null = null
+// Cache the in-flight promise, not the resolved connection — two callers
+// racing before the first openDB() settles (e.g. activities.init() and
+// folders.init() firing on the same tick from App.tsx) would otherwise each
+// start their own openDB(), and the second can block behind the first's
+// version-upgrade transaction.
+let dbPromise: Promise<IDBPDatabase> | null = null
 
-async function getDb() {
-  if (!db) {
-    db = await openDB(DB_NAME, DB_VERSION, {
-      upgrade(database) {
-        // Guard existence checks so a v1 -> v2 upgrade (which re-runs this whole
-        // callback, not just the new version's delta) doesn't try to recreate
-        // the already-existing activities store and crash the migration.
-        if (!database.objectStoreNames.contains(ACTIVITIES_STORE)) {
-          database.createObjectStore(ACTIVITIES_STORE, { keyPath: 'id' })
-        }
-        if (!database.objectStoreNames.contains(FOLDERS_STORE)) {
-          database.createObjectStore(FOLDERS_STORE, { keyPath: 'id' })
-        }
-      },
-    })
-  }
-  return db
+function getDb() {
+  dbPromise ??= openDB(DB_NAME, DB_VERSION, {
+    upgrade(database) {
+      // Guard existence checks so a v1 -> v2 upgrade (which re-runs this whole
+      // callback, not just the new version's delta) doesn't try to recreate
+      // the already-existing activities store and crash the migration.
+      if (!database.objectStoreNames.contains(ACTIVITIES_STORE)) {
+        database.createObjectStore(ACTIVITIES_STORE, { keyPath: 'id' })
+      }
+      if (!database.objectStoreNames.contains(FOLDERS_STORE)) {
+        database.createObjectStore(FOLDERS_STORE, { keyPath: 'id' })
+      }
+    },
+  })
+  return dbPromise
 }
 
-// IDB doesn't handle Date objects in complex structures well — serialize/deserialize
-function serialize(activity: Activity): object {
-  return JSON.parse(JSON.stringify(activity))
-}
-
+// IndexedDB's structured clone handles Date natively, so activities/folders are
+// stored as-is. Records written before this change were round-tripped through
+// JSON (dates as strings) — deserialize below accepts either shape, since
+// `new Date(x)` works whether `x` is an ISO string or already a Date instance.
 function deserialize(raw: Record<string, unknown>): Activity {
   const points = (raw.points as Record<string, unknown>[]).map((p) => ({
     ...p,
@@ -49,7 +51,7 @@ function deserialize(raw: Record<string, unknown>): Activity {
 
 export async function saveActivity(activity: Activity): Promise<void> {
   const db = await getDb()
-  await db.put(ACTIVITIES_STORE, serialize(activity))
+  await db.put(ACTIVITIES_STORE, activity)
 }
 
 export async function loadActivities(): Promise<Activity[]> {
@@ -63,10 +65,6 @@ export async function deleteActivity(id: string): Promise<void> {
   await db.delete(ACTIVITIES_STORE, id)
 }
 
-function serializeFolder(folder: Folder): object {
-  return JSON.parse(JSON.stringify(folder))
-}
-
 function deserializeFolder(raw: Record<string, unknown>): Folder {
   return {
     ...(raw as Omit<Folder, 'createdAt'>),
@@ -76,7 +74,7 @@ function deserializeFolder(raw: Record<string, unknown>): Folder {
 
 export async function saveFolder(folder: Folder): Promise<void> {
   const db = await getDb()
-  await db.put(FOLDERS_STORE, serializeFolder(folder))
+  await db.put(FOLDERS_STORE, folder)
 }
 
 export async function loadFolders(): Promise<Folder[]> {

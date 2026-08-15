@@ -11,6 +11,7 @@ interface CompareFilterState {
   includeUnfiled: boolean
   toggleFolder: (id: string) => void
   toggleUnfiled: () => void
+  removeFolder: (id: string) => void
 }
 
 export const useCompareFilter = create<CompareFilterState>((set) => ({
@@ -25,6 +26,15 @@ export const useCompareFilter = create<CompareFilterState>((set) => ({
   }),
 
   toggleUnfiled: () => set((s) => ({ includeUnfiled: !s.includeUnfiled })),
+
+  // Called when a folder is deleted, so a stale id doesn't linger in the
+  // filter and resurface activities that are no longer classified there.
+  removeFolder: (id) => set((s) => {
+    if (!s.selectedFolderIds.has(id)) return s
+    const next = new Set(s.selectedFolderIds)
+    next.delete(id)
+    return { selectedFolderIds: next }
+  }),
 }))
 
 export function getCompareCandidates(

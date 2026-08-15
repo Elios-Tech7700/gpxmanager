@@ -102,60 +102,87 @@ function buildWindSegments(activity: Activity) {
   }
 }
 
+// Redraws the route. Sources/layers are only torn down and rebuilt when they
+// don't exist yet (fresh map/style) — a wind recalculation on the SAME route
+// (activity.id unchanged) reuses the existing sources via setData(), so it
+// doesn't flash-rebuild the whole layer stack or fight the user's zoom.
+// `refit` gates fitBounds separately: only pass true when the route itself
+// changed, never on a same-route wind recolor.
 function applyRoute(
   map: maplibregl.Map,
   activity: Activity,
   theme: MapTheme,
   markersRef: { current: { start: maplibregl.Marker | null; end: maplibregl.Marker | null } },
+  refit: boolean,
 ) {
-  ;['route-wind-line', 'route-line', 'route-casing'].forEach((id) => { if (map.getLayer(id)) map.removeLayer(id) })
-  if (map.getSource('route-wind')) map.removeSource('route-wind')
-  if (map.getSource('route-geojson')) map.removeSource('route-geojson')
-
   const coords = activity.points.map((p) => [p.lon, p.lat])
+  const lineGeometry = {
+    type: 'Feature' as const,
+    properties: {},
+    geometry: { type: 'LineString' as const, coordinates: coords },
+  }
 
-  map.addSource('route-geojson', {
-    type: 'geojson',
-    data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } },
-  })
-  map.addLayer({ id: 'route-casing', type: 'line', source: 'route-geojson', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': CASING_COLOR[theme], 'line-width': 8, 'line-opacity': 0.25 } })
+  const plainSource = map.getSource('route-geojson') as maplibregl.GeoJSONSource | undefined
+  if (plainSource) {
+    plainSource.setData(lineGeometry)
+  } else {
+    map.addSource('route-geojson', { type: 'geojson', data: lineGeometry })
+    map.addLayer({ id: 'route-casing', type: 'line', source: 'route-geojson', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': CASING_COLOR[theme], 'line-width': 8, 'line-opacity': 0.25 } })
+  }
 
   if (activity.windFetched) {
     // tolerance: 0 — the source is thousands of tiny 2-point segments; MapLibre's
     // default tile simplification collapses most of them to nothing when zoomed out
-    map.addSource('route-wind', { type: 'geojson', data: buildWindSegments(activity), tolerance: 0 })
-    map.addLayer({
-      id: 'route-wind-line',
-      type: 'line',
-      source: 'route-wind',
-      layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: {
-        'line-width': 4,
-        'line-color': ['match', ['get', 'windClass'],
-          'headwind',              WIND_CLASS_COLOR.headwind,
-          'crosswind-unfavorable', WIND_CLASS_COLOR['crosswind-unfavorable'],
-          'crosswind-favorable',   WIND_CLASS_COLOR['crosswind-favorable'],
-          'tailwind',              WIND_CLASS_COLOR.tailwind,
-          '#ff8a3d',
-        ] as unknown as string,
-      },
-    })
+    const windSource = map.getSource('route-wind') as maplibregl.GeoJSONSource | undefined
+    if (windSource) {
+      windSource.setData(buildWindSegments(activity))
+    } else {
+      map.addSource('route-wind', { type: 'geojson', data: buildWindSegments(activity), tolerance: 0 })
+      map.addLayer({
+        id: 'route-wind-line',
+        type: 'line',
+        source: 'route-wind',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-width': 4,
+          'line-color': ['match', ['get', 'windClass'],
+            'headwind',              WIND_CLASS_COLOR.headwind,
+            'crosswind-unfavorable', WIND_CLASS_COLOR['crosswind-unfavorable'],
+            'crosswind-favorable',   WIND_CLASS_COLOR['crosswind-favorable'],
+            'tailwind',              WIND_CLASS_COLOR.tailwind,
+            '#ff8a3d',
+          ] as unknown as string,
+        },
+      })
+    }
+    if (map.getLayer('route-line')) map.removeLayer('route-line')
   } else {
-    map.addLayer({ id: 'route-line', type: 'line', source: 'route-geojson', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#ff8a3d', 'line-width': 4 } })
+    if (map.getLayer('route-wind-line')) map.removeLayer('route-wind-line')
+    if (map.getSource('route-wind')) map.removeSource('route-wind')
+    if (!map.getLayer('route-line')) {
+      map.addLayer({ id: 'route-line', type: 'line', source: 'route-geojson', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#ff8a3d', 'line-width': 4 } })
+    }
   }
 
-  markersRef.current.start?.remove()
-  markersRef.current.end?.remove()
   const start = activity.points[0]
   const end = activity.points[activity.points.length - 1]
-  markersRef.current = {
-    start: new maplibregl.Marker({ color: '#86efac' }).setLngLat([start.lon, start.lat]).addTo(map),
-    end: new maplibregl.Marker({ color: '#f87171' }).setLngLat([end.lon, end.lat]).addTo(map),
+  if (markersRef.current.start && markersRef.current.end) {
+    markersRef.current.start.setLngLat([start.lon, start.lat])
+    markersRef.current.end.setLngLat([end.lon, end.lat])
+  } else {
+    markersRef.current.start?.remove()
+    markersRef.current.end?.remove()
+    markersRef.current = {
+      start: new maplibregl.Marker({ color: '#86efac' }).setLngLat([start.lon, start.lat]).addTo(map),
+      end: new maplibregl.Marker({ color: '#f87171' }).setLngLat([end.lon, end.lat]).addTo(map),
+    }
   }
 
-  const [minLon, minLat, maxLon, maxLat] = activity.bounds
-  // Use animate:false — fitBounds with animation blocks before map is fully loaded
-  map.fitBounds([[minLon, minLat], [maxLon, maxLat]], { padding: 80, animate: false, maxZoom: 14 })
+  if (refit) {
+    const [minLon, minLat, maxLon, maxLat] = activity.bounds
+    // Use animate:false — fitBounds with animation blocks before map is fully loaded
+    map.fitBounds([[minLon, minLat], [maxLon, maxLat]], { padding: 80, animate: false, maxZoom: 14 })
+  }
 }
 
 export function MapView({ onOpenSorties, onOpenCompare, compareCount }: {
@@ -167,6 +194,12 @@ export function MapView({ onOpenSorties, onOpenCompare, compareCount }: {
   const mapRef = useRef<maplibregl.Map | null>(null)
   const pendingActivityRef = useRef<Activity | null>(null)
   const routeMarkersRef = useRef<{ start: maplibregl.Marker | null; end: maplibregl.Marker | null }>({ start: null, end: null })
+  // Which activity.id the camera was last fitted to — fitBounds only re-runs when
+  // this changes, so a same-route wind recalc doesn't reset the user's zoom/pan.
+  const lastFittedIdRef = useRef<string | null>(null)
+  // Bumped on every handleLoadWind call so a slow, superseded fetch can detect
+  // it's stale and skip its setState/updateActivity once it resolves.
+  const windRequestIdRef = useRef(0)
 
   const activity = useActiveActivity()
   const updateActivity = useActivities((s) => s.updateActivity)
@@ -208,10 +241,12 @@ export function MapView({ onOpenSorties, onOpenCompare, compareCount }: {
     })
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
 
-    // Draw any pending activity once style is ready
+    // Draw any pending activity once style is ready. A (re)loaded style has no
+    // sources/camera yet, so this always refits regardless of lastFittedIdRef.
     const tryDraw = () => {
       if (pendingActivityRef.current) {
-        applyRoute(map, pendingActivityRef.current, themeRef.current, routeMarkersRef)
+        applyRoute(map, pendingActivityRef.current, themeRef.current, routeMarkersRef, true)
+        lastFittedIdRef.current = pendingActivityRef.current.id
         pendingActivityRef.current = null
       }
     }
@@ -239,7 +274,9 @@ export function MapView({ onOpenSorties, onOpenCompare, compareCount }: {
 
     // Try immediately — MapLibre queues addSource/addLayer until style is ready
     try {
-      applyRoute(map, activity, themeRef.current, routeMarkersRef)
+      const refit = lastFittedIdRef.current !== activity.id
+      applyRoute(map, activity, themeRef.current, routeMarkersRef, refit)
+      lastFittedIdRef.current = activity.id
     } catch {
       // Style not ready yet — queue it and wait for style.load
       pendingActivityRef.current = activity
@@ -252,21 +289,27 @@ export function MapView({ onOpenSorties, onOpenCompare, compareCount }: {
   const handleLoadWind = async (targetOverride?: Date, activityOverride?: Activity) => {
     const base = activityOverride ?? activity
     if (!base) return
+    const requestId = ++windRequestIdRef.current
     setLoadingWind(true)
     setWindError(null)
     try {
       const target = targetOverride ?? new Date(plannedAt)
       const shifted = shiftActivityStart(base, target)
       const enriched = await enrichActivityWithWind(shifted)
+      // A more recent handleLoadWind call (fast +/-30min tap, or switching
+      // activity mid-fetch) has already superseded this one — drop the result.
+      if (windRequestIdRef.current !== requestId) return
       await updateActivity(enriched)
     } catch (e) {
+      if (windRequestIdRef.current !== requestId) return
       setWindError(e instanceof Error ? e.message : 'Erreur lors du chargement du vent')
     } finally {
-      setLoadingWind(false)
+      if (windRequestIdRef.current === requestId) setLoadingWind(false)
     }
   }
 
   const commitPlannedAt = (target: Date) => {
+    if (Number.isNaN(target.getTime())) return
     setPlannedAt(format(target, DATETIME_LOCAL_FORMAT))
     handleLoadWind(target)
   }

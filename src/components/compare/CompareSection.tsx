@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
+import { useShallow } from 'zustand/shallow'
 import { useActivities } from '@/store/activities'
 import { useFolders } from '@/store/folders'
 import { useCompareFilter, getCompareCandidates } from '@/store/compareFilter'
@@ -19,15 +20,28 @@ function formatDist(m: number) {
 export function CompareSection({ onSelect }: { onSelect: (id: string) => void }) {
   const activities = useActivities((s) => s.activities)
   const updateActivity = useActivities((s) => s.updateActivity)
-  const { folders } = useFolders()
-  const { selectedFolderIds, includeUnfiled, toggleFolder, toggleUnfiled } = useCompareFilter()
+  const folders = useFolders((s) => s.folders)
+  const { selectedFolderIds, includeUnfiled, toggleFolder, toggleUnfiled } = useCompareFilter(
+    useShallow((s) => ({
+      selectedFolderIds: s.selectedFolderIds,
+      includeUnfiled: s.includeUnfiled,
+      toggleFolder: s.toggleFolder,
+      toggleUnfiled: s.toggleUnfiled,
+    })),
+  )
 
   const candidates = getCompareCandidates(activities, selectedFolderIds, includeUnfiled)
   const unfiledCount = activities.filter((a) => !a.folderId).length
 
   const [targetInput, setTargetInput] = useState(() => format(roundUpToHalfHour(new Date()), DATETIME_LOCAL_FORMAT))
   const [debouncedTarget, setDebouncedTarget] = useState(targetInput)
+  // Ranking results are kept in local state only — earlier versions persisted every
+  // ranked candidate via updateActivity, which rewrote each one's startTime/points
+  // in IndexedDB on every debounce tick (including routes never actually picked)
+  // and desynced the map from whichever candidate happened to be active. Only the
+  // activity the user actually clicks gets persisted, in handleSelect below.
   const [results, setResults] = useState<{ activity: Activity; score: EffortScore }[] | null>(null)
+  const [failedCount, setFailedCount] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -42,22 +56,33 @@ export function CompareSection({ onSelect }: { onSelect: (id: string) => void })
   }, [targetInput])
 
   useEffect(() => {
-    if (candidates.length < MIN_CANDIDATES) { setResults(null); return }
+    if (candidates.length < MIN_CANDIDATES) { setResults(null); setFailedCount(0); return }
+    // The datetime-local input can be cleared to an empty string by the user
+    // (backspace, browser "clear" affordance) — new Date('') is an Invalid
+    // Date that would otherwise reach shiftActivityStart/date-fns and throw.
+    const target = new Date(debouncedTarget)
+    if (Number.isNaN(target.getTime())) { setResults(null); setFailedCount(0); return }
+
     let cancelled = false
     setLoading(true)
     setError(null)
-    rankByWind(candidates, new Date(debouncedTarget))
-      .then(async (ranked) => {
+    rankByWind(candidates, target)
+      .then(({ results: ranked, failedCount: failed }) => {
         if (cancelled) return
-        await Promise.all(ranked.map((r) => updateActivity(r.activity)))
-        if (!cancelled) setResults(ranked)
+        setResults(ranked)
+        setFailedCount(failed)
       })
       .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : 'Erreur lors du calcul') })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-    // candidateIds (not the array reference) avoids re-running when updateActivity
-    // above replaces the same activities with newly enriched copies
+    // candidateIds (not the array reference) avoids re-running when a previous
+    // selection's updateActivity call below replaces that activity with a new copy
   }, [candidateIds, debouncedTarget])
+
+  const handleSelect = async (result: { activity: Activity; score: EffortScore }) => {
+    await updateActivity(result.activity)
+    onSelect(result.activity.id)
+  }
 
   return (
     <div className="px-4 py-3 space-y-3">
@@ -129,12 +154,18 @@ export function CompareSection({ onSelect }: { onSelect: (id: string) => void })
 
           {error && <p className="text-xs text-[var(--color-wind-strong)] py-2">{error}</p>}
 
+          {!loading && !error && failedCount > 0 && (
+            <p className="text-xs text-[var(--color-wind-moderate)] py-1">
+              {failedCount} itinéraire{failedCount > 1 ? 's' : ''} non comparé{failedCount > 1 ? 's' : ''} (erreur réseau).
+            </p>
+          )}
+
           {!loading && !error && results && (
             <div className="space-y-1.5">
               {results.map((r, i) => (
                 <button
                   key={r.activity.id}
-                  onClick={() => onSelect(r.activity.id)}
+                  onClick={() => handleSelect(r)}
                   className={clsx(
                     'w-full text-left rounded-lg px-2.5 py-2 transition-colors border',
                     i === 0

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { useShallow } from 'zustand/shallow'
 import { useActivities } from '@/store/activities'
 import { useFolders } from '@/store/folders'
 import { DropZone } from '@/components/import/DropZone'
@@ -241,8 +242,25 @@ function FolderHeader({ folder, count, expanded, onToggle, onRename, onDelete }:
 }
 
 export function SortiesPanel({ onSelectActivity }: { onSelectActivity: () => void }) {
-  const { activities, activeId, setActive, removeActivity, updateActivity, moveActivity, duplicateActivity } = useActivities()
-  const { folders, addFolder, renameFolder, deleteFolder } = useFolders()
+  const { activities, activeId, setActive, removeActivity, updateActivity, moveActivity, duplicateActivity } = useActivities(
+    useShallow((s) => ({
+      activities: s.activities,
+      activeId: s.activeId,
+      setActive: s.setActive,
+      removeActivity: s.removeActivity,
+      updateActivity: s.updateActivity,
+      moveActivity: s.moveActivity,
+      duplicateActivity: s.duplicateActivity,
+    })),
+  )
+  const { folders, addFolder, renameFolder, deleteFolder } = useFolders(
+    useShallow((s) => ({
+      folders: s.folders,
+      addFolder: s.addFolder,
+      renameFolder: s.renameFolder,
+      deleteFolder: s.deleteFolder,
+    })),
+  )
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
   const [creatingFolder, setCreatingFolder] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')

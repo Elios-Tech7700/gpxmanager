@@ -20,7 +20,7 @@ interface StravaRouteApiItem {
 
 export async function fetchStravaRoutes(): Promise<StravaRouteSummary[]> {
   const token = await ensureValidToken()
-  const res = await fetch(`/api/strava/routes?access_token=${token}`)
+  const res = await fetch('/api/strava/routes', { headers: { Authorization: `Bearer ${token}` } })
   if (!res.ok) throw new Error('Impossible de récupérer les itinéraires Strava.')
   const data: StravaRouteApiItem[] = await res.json()
   return data.map((r) => ({
@@ -34,7 +34,9 @@ export async function fetchStravaRoutes(): Promise<StravaRouteSummary[]> {
 
 export async function importStravaRoute(summary: StravaRouteSummary): Promise<Activity> {
   const token = await ensureValidToken()
-  const res = await fetch(`/api/strava/routes/${summary.id}/gpx?access_token=${token}`)
+  const res = await fetch(`/api/strava/routes/${summary.id}/gpx`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
   if (!res.ok) throw new Error('Impossible de récupérer le tracé de cet itinéraire.')
   const text = await res.text()
   return parseRouteGpx(text, summary.name, summary.estimatedMovingTime)

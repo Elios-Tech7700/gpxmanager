@@ -3,7 +3,7 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useActivities } from '@/store/activities'
 import { shiftActivityStart } from '@/lib/schedule'
-import { buildAuthorizeUrl, clearTokens, exchangeCode, getStoredTokens, type StravaTokens } from '@/lib/strava-auth'
+import { buildAuthorizeUrl, clearTokens, consumeOAuthState, deauthorize, exchangeCode, getStoredTokens, type StravaTokens } from '@/lib/strava-auth'
 import { fetchStravaActivities, importStravaActivity, type StravaActivitySummary } from '@/lib/strava'
 import { fetchStravaRoutes, importStravaRoute, type StravaRouteSummary } from '@/lib/strava-routes'
 
@@ -21,9 +21,15 @@ export function StravaImport() {
   const addActivity = useActivities((s) => s.addActivity)
 
   useEffect(() => {
-    const code = new URLSearchParams(window.location.search).get('code')
+    const params = new URLSearchParams(window.location.search)
+    const code = params.get('code')
     if (!code) return
+    const state = params.get('state')
     window.history.replaceState({}, '', window.location.pathname)
+    if (!consumeOAuthState(state)) {
+      setError('Connexion Strava refusée (état de sécurité invalide, réessaie).')
+      return
+    }
     exchangeCode(code)
       .then(setTokens)
       .catch((e) => setError(e instanceof Error ? e.message : 'Erreur de connexion Strava'))
@@ -75,7 +81,8 @@ export function StravaImport() {
     }
   }
 
-  const handleDisconnect = () => {
+  const handleDisconnect = async () => {
+    await deauthorize()
     clearTokens()
     setTokens(null)
     setActivities(null)

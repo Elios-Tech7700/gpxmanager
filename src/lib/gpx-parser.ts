@@ -35,12 +35,42 @@ interface RawPoint {
   time: Date
 }
 
+// `?? '0'` only guards a missing attribute — parseFloat('') and parseFloat of
+// garbage both silently produce NaN, which we treat here as "invalid", not "zero".
+function parseCoord(value: string | null | undefined): number {
+  return value == null ? NaN : parseFloat(value)
+}
+
+// Missing <ele> is common (some GPX exporters omit it) and worth 0m sensible
+// default; a genuinely unparseable value is not. We forward-fill NaN below
+// rather than default to 0 here, so a single missing tag mid-route doesn't
+// synthesize a fake climb from sea level to the next real reading.
+function parseEle(text: string | null | undefined): number {
+  return text ? parseFloat(text) : NaN
+}
+
+// Forward-fills NaN elevations from the nearest known previous value (0 for a
+// leading run of NaNs) so `buildActivity`'s elevationGain loop never computes
+// a delta against a phantom 0m baseline.
+function fillMissingElevations(points: { ele: number }[]): void {
+  let last = 0
+  for (const p of points) {
+    if (Number.isNaN(p.ele)) p.ele = last
+    else last = p.ele
+  }
+}
+
 // Shared by any import source (GPX file, Strava streams, ...) once it has
 // reduced its own format down to a plain lat/lon/ele/time point list.
 export function buildActivity(rawPoints: RawPoint[], name: string, source: Activity['source']): Activity {
   if (rawPoints.length === 0) throw new Error('Aucun point de tracé trouvé.')
+  if (rawPoints.some((p) => !Number.isFinite(p.lat) || !Number.isFinite(p.lon))) {
+    throw new Error('Ce fichier contient des coordonnées GPS invalides.')
+  }
 
-  // Compute bearings and speeds
+  // Compute bearings, speeds, and track bounds in one pass
+  let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity
+
   const points: GpxPoint[] = rawPoints.map((p, i) => {
     const next = rawPoints[i + 1]
     const prev = rawPoints[i - 1]
@@ -53,6 +83,11 @@ export function buildActivity(rawPoints: RawPoint[], name: string, source: Activ
       const dt = (p.time.getTime() - prev.time.getTime()) / 1000
       speed = dt > 0 ? (dist / dt) * 3.6 : 0
     }
+
+    if (p.lat < minLat) minLat = p.lat
+    if (p.lat > maxLat) maxLat = p.lat
+    if (p.lon < minLon) minLon = p.lon
+    if (p.lon > maxLon) maxLon = p.lon
 
     return {
       lat: p.lat,
@@ -77,14 +112,7 @@ export function buildActivity(rawPoints: RawPoint[], name: string, source: Activ
   const endTime = points[points.length - 1].time
   const durationSeconds = (endTime.getTime() - startTime.getTime()) / 1000
 
-  const lats = points.map((p) => p.lat)
-  const lons = points.map((p) => p.lon)
-  const bounds: [number, number, number, number] = [
-    Math.min(...lons),
-    Math.min(...lats),
-    Math.max(...lons),
-    Math.max(...lats),
-  ]
+  const bounds: [number, number, number, number] = [minLon, minLat, maxLon, maxLat]
 
   return {
     id: generateId(),
@@ -115,15 +143,19 @@ export function parseGpx(text: string, filename: string): Activity {
   if (trkpts.length === 0) throw new Error('Aucun point de tracé trouvé dans ce fichier GPX.')
 
   const rawPoints = trkpts.map((pt) => {
-    const lat = parseFloat(pt.getAttribute('lat') ?? '0')
-    const lon = parseFloat(pt.getAttribute('lon') ?? '0')
-    const ele = parseFloat(pt.querySelector('ele')?.textContent ?? '0')
+    const lat = parseCoord(pt.getAttribute('lat'))
+    const lon = parseCoord(pt.getAttribute('lon'))
+    const ele = parseEle(pt.querySelector('ele')?.textContent)
     const timeStr = pt.querySelector('time')?.textContent ?? ''
-    const time = timeStr ? new Date(timeStr) : null
+    const parsed = timeStr ? new Date(timeStr) : null
+    const time = parsed && !Number.isNaN(parsed.getTime()) ? parsed : null
     return { lat, lon, ele, time }
   })
 
-  if (!rawPoints[0].time) throw new Error('Ce fichier GPX ne contient pas d\'horodatage — le calcul du vent n\'est pas possible.')
+  if (rawPoints.some((p) => !p.time)) {
+    throw new Error('Ce fichier GPX ne contient pas d\'horodatage sur tous les points — le calcul du vent n\'est pas possible.')
+  }
+  fillMissingElevations(rawPoints)
 
   return buildActivity(rawPoints as RawPoint[], name, 'upload')
 }
@@ -139,10 +171,11 @@ export function parseRouteGpx(text: string, name: string, estimatedDurationSecon
   if (trkpts.length === 0) throw new Error('Aucun point de tracé trouvé dans cet itinéraire.')
 
   const geoPoints = trkpts.map((pt) => ({
-    lat: parseFloat(pt.getAttribute('lat') ?? '0'),
-    lon: parseFloat(pt.getAttribute('lon') ?? '0'),
-    ele: parseFloat(pt.querySelector('ele')?.textContent ?? '0'),
+    lat: parseCoord(pt.getAttribute('lat')),
+    lon: parseCoord(pt.getAttribute('lon')),
+    ele: parseEle(pt.querySelector('ele')?.textContent),
   }))
+  fillMissingElevations(geoPoints)
 
   const cumDist = [0]
   for (let i = 1; i < geoPoints.length; i++) {
