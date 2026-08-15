@@ -9,6 +9,13 @@ import { fetchStravaRoutes, importStravaRoute, type StravaRouteSummary } from '@
 
 export function StravaImport() {
   const [tokens, setTokens] = useState<StravaTokens | null>(() => getStoredTokens())
+  // True from mount if the URL carries an OAuth callback (?code=) that still
+  // needs validating. While true, the "Connecter Strava" button must NOT
+  // render — it calls buildAuthorizeUrl(), which generates and stores a FRESH
+  // CSRF state, silently clobbering the one this exact callback is about to
+  // be checked against (a full-page Strava redirect always remounts the app
+  // with no panel open, so this is the very first render after reconnecting).
+  const [exchanging, setExchanging] = useState(() => new URLSearchParams(window.location.search).has('code'))
   const [activities, setActivities] = useState<StravaActivitySummary[] | null>(null)
   const [loadingActivities, setLoadingActivities] = useState(false)
   const [activitiesOpen, setActivitiesOpen] = useState(false)
@@ -28,11 +35,13 @@ export function StravaImport() {
     window.history.replaceState({}, '', window.location.pathname)
     if (!consumeOAuthState(state)) {
       setError('La connexion Strava a expiré, réessaie.')
+      setExchanging(false)
       return
     }
     exchangeCode(code)
       .then(setTokens)
       .catch((e) => setError(e instanceof Error ? e.message : 'Erreur de connexion Strava'))
+      .finally(() => setExchanging(false))
   }, [])
 
   // Lazy-loaded on first expand — no point fetching a list the user never opens
@@ -92,6 +101,16 @@ export function StravaImport() {
   }
 
   if (!tokens) {
+    if (exchanging) {
+      return (
+        <div className="px-4 pb-4">
+          <div className="flex items-center justify-center gap-2 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] py-2.5 text-sm font-medium text-[var(--color-text-secondary)]">
+            <span className="w-3.5 h-3.5 border-2 border-[var(--color-border)] border-t-[var(--color-accent)] rounded-full animate-spin" />
+            Connexion à Strava…
+          </div>
+        </div>
+      )
+    }
     return (
       <div className="px-4 pb-4">
         <a
