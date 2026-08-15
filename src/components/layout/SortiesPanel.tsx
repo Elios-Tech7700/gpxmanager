@@ -3,6 +3,7 @@ import { useShallow } from 'zustand/shallow'
 import { useActivities } from '@/store/activities'
 import { useFolders } from '@/store/folders'
 import { DropZone } from '@/components/import/DropZone'
+import { AutoOrganizeButton } from '@/components/import/AutoOrganizeButton'
 import { ActivityCard } from '@/components/layout/ActivityCard'
 import { FolderHeader } from '@/components/layout/FolderHeader'
 import type { Activity } from '@/types'
@@ -63,6 +64,7 @@ export function SortiesPanel({ onSelectActivity }: { onSelectActivity: () => voi
       <Suspense fallback={null}>
         <StravaImport />
       </Suspense>
+      <AutoOrganizeButton />
 
       <div className="space-y-0.5">
         <div className="flex items-center justify-between px-1">

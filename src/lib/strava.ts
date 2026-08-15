@@ -1,8 +1,13 @@
 import type { Activity } from '@/types'
 import { buildActivity } from './gpx-parser'
 import { ensureValidToken } from './strava-auth'
+import { buildStravaId } from './auto-organize'
 
 const BIKE_TYPES = new Set(['Ride', 'GravelRide', 'MountainBikeRide', 'EBikeRide', 'VirtualRide'])
+const PAGE_SIZE = 200
+// Safety cap on pagination — 20 * 200 = 4000 activities is far beyond any
+// realistic account, guards against looping forever on an unexpected response.
+const MAX_PAGES = 20
 
 export interface StravaActivitySummary {
   id: string
@@ -28,12 +33,17 @@ interface StravaStreamsResponse {
 
 export async function fetchStravaActivities(): Promise<StravaActivitySummary[]> {
   const token = await ensureValidToken()
-  // Bearer header, not a query param — Vercel logs full request URLs, and this
-  // token grants activity:read_all (home-location GPS included).
-  const res = await fetch('/api/strava/activities', { headers: { Authorization: `Bearer ${token}` } })
-  if (!res.ok) throw new Error('Impossible de récupérer les activités Strava.')
-  const data: StravaActivityApiItem[] = await res.json()
-  return data
+  const all: StravaActivityApiItem[] = []
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    // Bearer header, not a query param — Vercel logs full request URLs, and this
+    // token grants activity:read_all (home-location GPS included).
+    const res = await fetch(`/api/strava/activities?page=${page}`, { headers: { Authorization: `Bearer ${token}` } })
+    if (!res.ok) throw new Error('Impossible de récupérer les activités Strava.')
+    const data: StravaActivityApiItem[] = await res.json()
+    all.push(...data)
+    if (data.length < PAGE_SIZE) break
+  }
+  return all
     .filter((a) => BIKE_TYPES.has(a.type))
     .map((a) => ({ id: a.id_str, name: a.name, startDate: a.start_date, distanceMeters: a.distance, type: a.type }))
 }
@@ -60,5 +70,6 @@ export async function importStravaActivity(summary: StravaActivitySummary): Prom
     time: new Date(startDate.getTime() + (time[i] ?? 0) * 1000),
   }))
 
-  return buildActivity(rawPoints, summary.name, 'strava')
+  const activity = buildActivity(rawPoints, summary.name, 'strava')
+  return { ...activity, stravaId: buildStravaId('activity', summary.id) }
 }

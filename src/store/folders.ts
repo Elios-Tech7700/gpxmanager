@@ -10,7 +10,7 @@ interface FoldersState {
   loading: boolean
   error: string | null
   init: () => Promise<void>
-  addFolder: (name: string) => Promise<void>
+  addFolder: (name: string) => Promise<Folder>
   renameFolder: (id: string, name: string) => Promise<void>
   deleteFolder: (id: string) => Promise<void>
 }
@@ -33,6 +33,7 @@ export const useFolders = create<FoldersState>((set, get) => ({
     const folder: Folder = { id: generateId(), name, createdAt: new Date() }
     await saveFolder(folder)
     set((s) => ({ folders: [...s.folders, folder] }))
+    return folder
   },
 
   renameFolder: async (id, name) => {

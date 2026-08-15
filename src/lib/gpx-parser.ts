@@ -1,4 +1,5 @@
 import type { Activity, GpxPoint } from '@/types'
+import { computeFingerprint } from './auto-organize'
 
 function parseXml(text: string): Document {
   const parser = new DOMParser()
@@ -128,6 +129,10 @@ export function buildActivity(rawPoints: RawPoint[], name: string, source: Activ
     windFetched: false,
     bounds,
     folderId: null,
+    // Set for every activity regardless of source — the auto-organize sync's
+    // dedup key when there's no Strava id to compare (manual GPX uploads),
+    // and a safety net even when there is one.
+    fingerprint: computeFingerprint({ name, distanceMeters, points }),
   }
 }
 
