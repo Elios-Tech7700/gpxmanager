@@ -1,4 +1,4 @@
-import type { Activity } from '@/types'
+import type { Activity, Folder } from '@/types'
 
 // Distance-bucket folders created by the "Organiser automatiquement" flow —
 // pure helpers only, no store/network access, so they're trivial to reason
@@ -13,12 +13,28 @@ export function bucketLabelForDistance(distanceMeters: number): string {
   return `${start}-${start + DISTANCE_BUCKET_KM} km`
 }
 
-const BUCKET_NAME_PATTERN = /^\d+-\d+ km$/
+const BUCKET_NAME_PATTERN = /^(\d+)-\d+ km$/
 
 // Used to decide the button's label ("Organiser" vs "Mettre à jour") — true
 // once at least one distance-bucket folder already exists from a past run.
 export function isBucketFolderName(name: string): boolean {
   return BUCKET_NAME_PATTERN.test(name)
+}
+
+// Folders are stored (and were previously listed) in creation order, which
+// for auto-generated buckets is whichever distance happened to come up
+// first while classifying — "30-40 km" before "0-10 km" before "100-110 km".
+// A plain alphabetical sort doesn't fix this either: "100-110 km" < "20-30 km"
+// lexicographically since '1' < '2'. Bucket folders need their start-km
+// parsed out and compared as numbers; manually named folders (no such
+// pattern) sort alphabetically ahead of the auto-generated ladder.
+export function compareFolders(a: Pick<Folder, 'name'>, b: Pick<Folder, 'name'>): number {
+  const startA = a.name.match(BUCKET_NAME_PATTERN)
+  const startB = b.name.match(BUCKET_NAME_PATTERN)
+  if (startA && startB) return Number(startA[1]) - Number(startB[1])
+  if (startA) return 1
+  if (startB) return -1
+  return a.name.localeCompare(b.name, 'fr')
 }
 
 export function buildStravaId(kind: 'activity' | 'route', id: string): string {

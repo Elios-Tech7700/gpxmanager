@@ -6,6 +6,7 @@ import { useCompareFilter, getCompareCandidates } from '@/store/compareFilter'
 import { roundUpToHalfHour } from '@/lib/schedule'
 import { datetimeLocalBounds, toDatetimeLocalValue } from '@/lib/datetime-local'
 import { formatDist } from '@/lib/format'
+import { compareFolders } from '@/lib/auto-organize'
 import { rankByWind, effortColor, effortLabel, type EffortScore } from '@/lib/wind-math'
 import type { Activity } from '@/types'
 import clsx from 'clsx'
@@ -87,7 +88,7 @@ export function CompareSection({ onSelect }: { onSelect: (id: string) => void })
           Comparer les dossiers
         </p>
         <div className="flex flex-wrap gap-1.5">
-          {folders.map((f) => {
+          {[...folders].sort(compareFolders).map((f) => {
             const count = activities.filter((a) => a.folderId === f.id).length
             const on = selectedFolderIds.has(f.id)
             return (

@@ -7,6 +7,7 @@ import { AutoOrganizeButton } from '@/components/import/AutoOrganizeButton'
 import { DuplicateCleanupBanner } from '@/components/import/DuplicateCleanupBanner'
 import { ActivityCard } from '@/components/layout/ActivityCard'
 import { FolderHeader } from '@/components/layout/FolderHeader'
+import { compareFolders } from '@/lib/auto-organize'
 import type { Activity } from '@/types'
 
 // Pulls in the Strava OAuth/fetch flow, only relevant once this panel is
@@ -47,6 +48,7 @@ export function SortiesPanel({ onSelectActivity }: { onSelectActivity: () => voi
   }
 
   const unfiled = activities.filter((a) => !a.folderId)
+  const sortedFolders = [...folders].sort(compareFolders)
 
   const cardProps = (a: Activity) => ({
     activity: a,
@@ -73,7 +75,7 @@ export function SortiesPanel({ onSelectActivity }: { onSelectActivity: () => voi
           <p className="text-[10px] text-[var(--color-text-muted)] font-medium uppercase tracking-wider">Dossiers</p>
           <button
             onClick={() => { setCreatingFolder(true); setNewFolderName('') }}
-            className="text-[10px] text-[var(--color-accent-hover)] hover:text-[var(--color-text-primary)] min-h-8 px-1"
+            className="text-[10px] text-[var(--color-accent-hover)] hover:text-[var(--color-text-primary)] min-h-11 px-2.5 flex items-center -my-2"
           >
             + Nouveau
           </button>
@@ -102,7 +104,7 @@ export function SortiesPanel({ onSelectActivity }: { onSelectActivity: () => voi
           />
         )}
 
-        {folders.map((f) => {
+        {sortedFolders.map((f) => {
           const folderActivities = activities.filter((a) => a.folderId === f.id)
           const expanded = expandedFolders.has(f.id)
           return (

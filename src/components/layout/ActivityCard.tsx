@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { formatDist, formatDuration } from '@/lib/format'
+import { compareFolders } from '@/lib/auto-organize'
 import type { Activity, Folder } from '@/types'
 import clsx from 'clsx'
 
@@ -135,7 +136,7 @@ export function ActivityCard({ activity, active, folders, onSelect, onDelete, on
                   {folders.length === 0 ? (
                     <p className="px-3 py-2.5 text-[var(--color-text-muted)]">Aucun dossier</p>
                   ) : (
-                    folders.map((f) => (
+                    [...folders].sort(compareFolders).map((f) => (
                       <button
                         key={f.id}
                         onClick={() => { onMove(f.id); setMenuOpen(false); setMoveSubmenuOpen(false) }}
