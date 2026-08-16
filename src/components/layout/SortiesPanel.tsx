@@ -49,6 +49,9 @@ export function SortiesPanel({ onSelectActivity }: { onSelectActivity: () => voi
 
   const unfiled = activities.filter((a) => !a.folderId)
   const sortedFolders = [...folders].sort(compareFolders)
+  const folderCounts = new Map(sortedFolders.map((f) => [f.id, activities.filter((a) => a.folderId === f.id).length]))
+  const maxFolderCount = Math.max(1, ...folderCounts.values())
+  const foldersTotal = activities.filter((a) => a.folderId).length
 
   const cardProps = (a: Activity) => ({
     activity: a,
@@ -72,7 +75,12 @@ export function SortiesPanel({ onSelectActivity }: { onSelectActivity: () => voi
 
       <div className="space-y-0.5">
         <div className="flex items-center justify-between px-1">
-          <p className="text-[10px] text-[var(--color-text-muted)] font-medium uppercase tracking-wider">Dossiers</p>
+          <p className="text-[10px] text-[var(--color-text-muted)] font-medium uppercase tracking-wider">
+            Dossiers
+            {foldersTotal > 0 && (
+              <span className="text-[var(--color-text-muted)] font-normal normal-case"> · {foldersTotal} sortie{foldersTotal === 1 ? '' : 's'}</span>
+            )}
+          </p>
           <button
             onClick={() => { setCreatingFolder(true); setNewFolderName('') }}
             className="text-[10px] text-[var(--color-accent-hover)] hover:text-[var(--color-text-primary)] min-h-11 px-2.5 flex items-center -my-2"
@@ -112,6 +120,7 @@ export function SortiesPanel({ onSelectActivity }: { onSelectActivity: () => voi
               <FolderHeader
                 folder={f}
                 count={folderActivities.length}
+                weight={folderActivities.length / maxFolderCount}
                 expanded={expanded}
                 onToggle={() => toggleFolder(f.id)}
                 onRename={(name) => renameFolder(f.id, name)}
