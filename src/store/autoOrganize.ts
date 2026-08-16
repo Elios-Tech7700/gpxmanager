@@ -1,11 +1,18 @@
-import { useState } from 'react'
-import { useActivities } from '@/store/activities'
-import { useFolders } from '@/store/folders'
+import { create } from 'zustand'
+import { useActivities } from './activities'
+import { useFolders } from './folders'
 import { getStoredTokens } from '@/lib/strava-auth'
 import { fetchStravaActivities, importStravaActivity } from '@/lib/strava'
 import { fetchStravaRoutes, importStravaRoute } from '@/lib/strava-routes'
 import { bucketLabelForDistance, buildStravaId } from '@/lib/auto-organize'
 import type { Activity } from '@/types'
+
+// A Zustand store, not component-local state — the sync/classify run must
+// survive the button that started it being unmounted (closing the Sorties
+// panel, switching tabs). A useState-based hook loses its progress on
+// remount even though the run keeps going in the background: the button
+// resets to "idle" while the import silently continues, invisible and
+// re-clickable into a second concurrent run.
 
 // Same concurrency cap as rankByWind's comparator batching (wind-math.ts) —
 // firing every import at once trips Strava's burst rate limit well before
@@ -28,11 +35,23 @@ const IDLE: AutoOrganizeProgress = {
   phase: 'idle', imported: 0, skipped: 0, failed: 0, classified: 0, total: 0, error: null,
 }
 
-export function useAutoOrganize() {
-  const [progress, setProgress] = useState<AutoOrganizeProgress>(IDLE)
+const RUNNING_PHASES: AutoOrganizePhase[] = ['fetching', 'importing', 'classifying']
 
-  const run = async () => {
-    setProgress({ ...IDLE, phase: 'fetching' })
+interface AutoOrganizeState {
+  progress: AutoOrganizeProgress
+  run: () => Promise<void>
+}
+
+export const useAutoOrganize = create<AutoOrganizeState>((set, get) => ({
+  progress: IDLE,
+
+  run: async () => {
+    // A stray click while a run from a previous mount is still going (exactly
+    // the scenario this store exists to prevent) — ignore instead of
+    // stacking a second concurrent sync on top of the first.
+    if (RUNNING_PHASES.includes(get().progress.phase)) return
+
+    set({ progress: { ...IDLE, phase: 'fetching' } })
     try {
       const connected = getStoredTokens() !== null
       let imported = 0
@@ -59,7 +78,7 @@ export function useAutoOrganize() {
           if (!existingIds.has(stravaId)) pending.push({ stravaId, fetchActivity: () => importStravaRoute(r) })
         }
 
-        setProgress((p) => ({ ...p, phase: 'importing', total: pending.length }))
+        set((s) => ({ progress: { ...s.progress, phase: 'importing', total: pending.length } }))
 
         for (let i = 0; i < pending.length; i += IMPORT_CONCURRENCY) {
           const batch = pending.slice(i, i + IMPORT_CONCURRENCY)
@@ -86,11 +105,11 @@ export function useAutoOrganize() {
               failed++
             }
           }
-          setProgress((p) => ({ ...p, imported, skipped, failed }))
+          set((s) => ({ progress: { ...s.progress, imported, skipped, failed } }))
         }
       }
 
-      setProgress((p) => ({ ...p, phase: 'classifying' }))
+      set((s) => ({ progress: { ...s.progress, phase: 'classifying' } }))
 
       const unfiled = useActivities.getState().activities.filter((a) => a.folderId === null)
       const folderIdByLabel = new Map(useFolders.getState().folders.map((f) => [f.name, f.id]))
@@ -114,15 +133,15 @@ export function useAutoOrganize() {
         }
       }
 
-      setProgress((p) => ({ ...p, phase: 'done', classified, failed }))
+      set((s) => ({ progress: { ...s.progress, phase: 'done', classified, failed } }))
     } catch (e) {
-      setProgress((p) => ({
-        ...p,
-        phase: 'error',
-        error: e instanceof Error ? e.message : "Erreur lors de l'organisation automatique.",
+      set((s) => ({
+        progress: {
+          ...s.progress,
+          phase: 'error',
+          error: e instanceof Error ? e.message : "Erreur lors de l'organisation automatique.",
+        },
       }))
     }
-  }
-
-  return { progress, run }
-}
+  },
+}))

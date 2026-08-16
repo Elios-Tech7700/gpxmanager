@@ -2,11 +2,16 @@ import { useState } from 'react'
 import { useFolders } from '@/store/folders'
 import { getStoredTokens } from '@/lib/strava-auth'
 import { isBucketFolderName } from '@/lib/auto-organize'
-import { useAutoOrganize } from '@/hooks/useAutoOrganize'
+import { useAutoOrganize } from '@/store/autoOrganize'
 
 export function AutoOrganizeButton() {
   const folders = useFolders((s) => s.folders)
-  const { progress, run } = useAutoOrganize()
+  // A Zustand store, not local state — the run survives this button being
+  // unmounted (closing the panel mid-sync), so progress picks back up
+  // correctly instead of resetting to "idle" while the sync keeps going
+  // invisibly in the background.
+  const progress = useAutoOrganize((s) => s.progress)
+  const run = useAutoOrganize((s) => s.run)
   // Checked once on mount — connecting/disconnecting Strava while this panel
   // stays open (without a page reload) won't update this, same tradeoff
   // StravaImport itself accepts for its own local connection state.
