@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import { format } from 'date-fns'
+import { fr } from 'date-fns/locale'
 import { useActivities } from '@/store/activities'
 import { findDuplicateGroups, pickKeeper } from '@/lib/auto-organize'
 import clsx from 'clsx'
@@ -43,11 +45,31 @@ export function DuplicateCleanupBanner() {
         {' — '}
         {toRemove.length} copie{toRemove.length === 1 ? '' : 's'} en trop.
       </p>
+
+      {/* Matching is now by proximity (départ/arrivée à moins de 500 m + distance
+          proche), pas une empreinte exacte — donc avant une suppression
+          irréversible, on montre précisément ce qui sera gardé vs supprimé. */}
       {armed && !cleaning && (
-        <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
-          La copie déjà classée (ou avec le vent chargé) est gardée à chaque fois, les autres sont supprimées.
-        </p>
+        <div className="mt-2 space-y-2.5 max-h-48 overflow-y-auto">
+          {groups.map((group) => {
+            const keeper = pickKeeper(group)
+            const remove = group.filter((a) => a.id !== keeper.id)
+            return (
+              <div key={keeper.id} className="text-[10px] leading-relaxed">
+                <p className="text-[var(--color-wind-calm)]">
+                  ✓ {keeper.name} — {format(keeper.startTime, 'd MMM yyyy, HH:mm', { locale: fr })} <span className="text-[var(--color-text-muted)]">(gardée)</span>
+                </p>
+                {remove.map((a) => (
+                  <p key={a.id} className="text-[var(--color-wind-strong)]">
+                    ✕ {a.name} — {format(a.startTime, 'd MMM yyyy, HH:mm', { locale: fr })}
+                  </p>
+                ))}
+              </div>
+            )
+          })}
+        </div>
       )}
+
       <div className="flex items-center gap-2 mt-1.5">
         <button
           onClick={handleClick}

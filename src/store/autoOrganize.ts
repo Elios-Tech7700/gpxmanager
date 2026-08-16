@@ -4,7 +4,7 @@ import { useFolders } from './folders'
 import { getStoredTokens } from '@/lib/strava-auth'
 import { fetchStravaActivities, importStravaActivity } from '@/lib/strava'
 import { fetchStravaRoutes, importStravaRoute } from '@/lib/strava-routes'
-import { bucketLabelForDistance, buildStravaId } from '@/lib/auto-organize'
+import { bucketLabelForDistance, buildStravaId, isNearDuplicate } from '@/lib/auto-organize'
 import type { Activity } from '@/types'
 
 // A Zustand store, not component-local state — the sync/classify run must
@@ -62,9 +62,9 @@ export const useAutoOrganize = create<AutoOrganizeState>((set, get) => ({
         const existingIds = new Set(
           useActivities.getState().activities.map((a) => a.stravaId).filter((id): id is string => Boolean(id)),
         )
-        const existingFingerprints = new Set(
-          useActivities.getState().activities.map((a) => a.fingerprint).filter((f): f is string => Boolean(f)),
-        )
+        // Geometry-based, not string-keyed — grows as imports land in the loop
+        // below, so a near-duplicate arriving later in the same sync is also caught.
+        const knownActivities = [...useActivities.getState().activities]
 
         const [activitySummaries, routeSummaries] = await Promise.all([fetchStravaActivities(), fetchStravaRoutes()])
 
@@ -88,17 +88,18 @@ export const useAutoOrganize = create<AutoOrganizeState>((set, get) => ({
             // stream) shouldn't abort the whole sync — count it and move on.
             if (result.status !== 'fulfilled') { failed++; continue }
             const activity = result.value
-            // A fingerprint match here means this exact ride is already in the
+            // A near-duplicate here means this same real ride is already in the
             // library under a different stravaId (e.g. saved both as a Strava
-            // activity and a Strava route) — skip the redundant copy.
-            if (activity.fingerprint && existingFingerprints.has(activity.fingerprint)) {
+            // activity and a Strava route, or re-recorded on another device) —
+            // skip the redundant copy.
+            if (knownActivities.some((existing) => isNearDuplicate(existing, activity))) {
               skipped++
               continue
             }
             // Isolated per item — an IndexedDB write failure on one activity
             // shouldn't abort the sync for the rest of the batch.
             try {
-              if (activity.fingerprint) existingFingerprints.add(activity.fingerprint)
+              knownActivities.push(activity)
               await useActivities.getState().addActivity(activity)
               imported++
             } catch {

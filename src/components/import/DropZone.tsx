@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { parseGpx } from '@/lib/gpx-parser'
 import { shiftActivityStart } from '@/lib/schedule'
+import { isNearDuplicate } from '@/lib/auto-organize'
 import { useActivities } from '@/store/activities'
 import clsx from 'clsx'
 
@@ -26,10 +27,10 @@ export function DropZone() {
 
       // Seeded from the store, then extended locally as files import — catches
       // a duplicate against activities already saved AND against another file
-      // in this same drop (e.g. the same GPX dragged in twice at once).
-      const knownFingerprints = new Set(
-        useActivities.getState().activities.map((a) => a.fingerprint).filter((f): f is string => Boolean(f)),
-      )
+      // in this same drop (e.g. the same GPX dragged in twice at once). Matched
+      // by start/end proximity + distance, not an exact hash — a GPX recorder
+      // never starts/stops at the exact same spot twice for "the same" ride.
+      const knownActivities = [...useActivities.getState().activities]
 
       let imported = 0
       let duplicates = 0
@@ -39,14 +40,14 @@ export function DropZone() {
         try {
           const text = await file.text()
           const parsed = parseGpx(text, file.name)
-          if (parsed.fingerprint && knownFingerprints.has(parsed.fingerprint)) {
+          if (knownActivities.some((existing) => isNearDuplicate(existing, parsed))) {
             duplicates++
             continue
           }
           // Only the route geometry/pacing from the GPX matters — plan the ride for now by default
           const activity = shiftActivityStart(parsed, new Date())
           await addActivity(activity)
-          if (parsed.fingerprint) knownFingerprints.add(parsed.fingerprint)
+          knownActivities.push(activity)
           imported++
         } catch (e) {
           failures.push(`${file.name} : ${e instanceof Error ? e.message : 'erreur inconnue'}`)

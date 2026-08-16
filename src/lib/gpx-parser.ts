@@ -1,19 +1,9 @@
 import type { Activity, GpxPoint } from '@/types'
-import { computeFingerprint } from './auto-organize'
+import { haversineDistance } from './geo'
 
 function parseXml(text: string): Document {
   const parser = new DOMParser()
   return parser.parseFromString(text, 'application/xml')
-}
-
-function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371000
-  const φ1 = (lat1 * Math.PI) / 180
-  const φ2 = (lat2 * Math.PI) / 180
-  const Δφ = ((lat2 - lat1) * Math.PI) / 180
-  const Δλ = ((lon2 - lon1) * Math.PI) / 180
-  const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
 function bearingBetween(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -129,10 +119,6 @@ export function buildActivity(rawPoints: RawPoint[], name: string, source: Activ
     windFetched: false,
     bounds,
     folderId: null,
-    // Set for every activity regardless of source — the auto-organize sync's
-    // dedup key when there's no Strava id to compare (manual GPX uploads),
-    // and a safety net even when there is one.
-    fingerprint: computeFingerprint({ name, distanceMeters, points }),
   }
 }
 

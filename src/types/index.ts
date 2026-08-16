@@ -37,11 +37,6 @@ export interface Activity {
   // import — lets a later auto-organize sync recognize this activity without
   // re-fetching it. Undefined for GPX files uploaded directly (no Strava origin).
   stravaId?: string
-  // Fingerprint (name + rounded distance + point count) computed for every
-  // activity regardless of source — the auto-organize sync's fallback dedup
-  // when there's no stravaId to compare (manual GPX re-uploads, or the same
-  // ride existing as both a Strava activity and a Strava route).
-  fingerprint?: string
 }
 
 export interface Folder {

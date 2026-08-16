@@ -1,4 +1,5 @@
 import type { Activity, Folder } from '@/types'
+import { haversineDistance } from './geo'
 
 // Distance-bucket folders created by the "Organiser automatiquement" flow —
 // pure helpers only, no store/network access, so they're trivial to reason
@@ -41,27 +42,55 @@ export function buildStravaId(kind: 'activity' | 'route', id: string): string {
   return `${kind}-${id}`
 }
 
-// Dedup key for activities with no stable Strava id (manual GPX uploads), and
-// a safety net even for Strava imports — catches the same ride existing as
-// both a Strava "activity" and a saved Strava "route" (different id spaces,
-// so stravaId alone wouldn't catch it).
-export function computeFingerprint(activity: Pick<Activity, 'name' | 'distanceMeters' | 'points'>): string {
-  return `${activity.name}|${Math.round(activity.distanceMeters)}|${activity.points.length}`
+// A GPX recording never starts/stops at the exact same GPS coordinate twice —
+// you press "stop" on the bike computer a bit early or late, or the fix drifts
+// a little before the first satellite lock. Exact-match dedup (same name,
+// same distance, same point count) essentially never fires on a genuinely
+// repeated commute for this reason. Instead: two activities are the same real
+// ride if their start points are close, their end points are close, and their
+// total distance is close — regardless of exactly how many points either one
+// recorded or what they're each named.
+export const DUPLICATE_RADIUS_METERS = 500
+
+// Total distance can drift by close to 2× the point radius if start and end
+// both happen to shift outward on the same ride — plus a relative margin so
+// long rides (where a few hundred meters is noise) aren't over-strict either.
+function distanceTolerance(distanceMeters: number): number {
+  return Math.max(DUPLICATE_RADIUS_METERS * 2, distanceMeters * 0.1)
+}
+
+export function isNearDuplicate(
+  a: Pick<Activity, 'distanceMeters' | 'points'>,
+  b: Pick<Activity, 'distanceMeters' | 'points'>,
+): boolean {
+  if (!a.points.length || !b.points.length) return false
+  if (Math.abs(a.distanceMeters - b.distanceMeters) > distanceTolerance(Math.max(a.distanceMeters, b.distanceMeters))) {
+    return false
+  }
+
+  const aStart = a.points[0]
+  const bStart = b.points[0]
+  if (haversineDistance(aStart.lat, aStart.lon, bStart.lat, bStart.lon) > DUPLICATE_RADIUS_METERS) return false
+
+  const aEnd = a.points[a.points.length - 1]
+  const bEnd = b.points[b.points.length - 1]
+  return haversineDistance(aEnd.lat, aEnd.lon, bEnd.lat, bEnd.lon) <= DUPLICATE_RADIUS_METERS
 }
 
 // Retroactive cleanup: groups activities already sitting in the library that
-// share a fingerprint — i.e. duplicates imported before this dedup existed
-// (or from before the app tracked fingerprints at all, if that field is unset
-// on old records — those are simply never grouped, nothing to compare them on).
+// look like the same ride recorded more than once. Each new activity joins
+// the first existing group whose first member it's a near-duplicate of —
+// O(n²) in the worst case, acceptable for a library in the hundreds/low
+// thousands and only recomputed when the activity list actually changes.
 export function findDuplicateGroups(activities: Activity[]): Activity[][] {
-  const byFingerprint = new Map<string, Activity[]>()
+  const groups: Activity[][] = []
   for (const activity of activities) {
-    if (!activity.fingerprint) continue
-    const group = byFingerprint.get(activity.fingerprint)
+    if (!activity.points.length) continue
+    const group = groups.find((g) => isNearDuplicate(g[0], activity))
     if (group) group.push(activity)
-    else byFingerprint.set(activity.fingerprint, [activity])
+    else groups.push([activity])
   }
-  return [...byFingerprint.values()].filter((group) => group.length > 1)
+  return groups.filter((group) => group.length > 1)
 }
 
 // Which copy survives a cleanup — prefers one already filed in a folder (real

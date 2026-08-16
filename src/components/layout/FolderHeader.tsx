@@ -49,14 +49,17 @@ export function FolderHeader({ folder, count, expanded, onToggle, onRename, onDe
           {folder.name} <span className="text-[var(--color-text-muted)] font-normal">({count})</span>
         </p>
       )}
-      <div className="flex items-center shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+      <div className="flex items-center gap-0.5 shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
         {/* w-11 h-11 (44px) is the minimum comfortable touch target — -m-2.5
             expands the tap area beyond the visual icon without pushing the
-            row's spacing around, same trick as ActivityCard's "⋯" button. */}
-        <button onClick={startEditing} title="Renommer" className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] w-11 h-11 -m-2.5 flex items-center justify-center text-xs shrink-0">
+            row's spacing around, same trick as ActivityCard's "⋯" button.
+            text-base (up from text-xs) and a round background on press make
+            the icon itself read as a bigger, tappable button, not just a
+            bigger invisible zone around a small glyph. */}
+        <button onClick={startEditing} title="Renommer" className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] active:bg-[var(--color-surface-3)] hover:bg-[var(--color-surface-3)] rounded-full w-11 h-11 -m-2.5 flex items-center justify-center text-base shrink-0 transition-colors">
           ✎
         </button>
-        <button onClick={onDelete} title="Supprimer le dossier" className="text-[var(--color-text-muted)] hover:text-[var(--color-wind-strong)] w-11 h-11 -m-2.5 flex items-center justify-center text-xs shrink-0">
+        <button onClick={onDelete} title="Supprimer le dossier" className="text-[var(--color-text-muted)] hover:text-[var(--color-wind-strong)] active:bg-[var(--color-surface-3)] hover:bg-[var(--color-surface-3)] rounded-full w-11 h-11 -m-2.5 flex items-center justify-center text-base shrink-0 transition-colors">
           ✕
         </button>
       </div>
