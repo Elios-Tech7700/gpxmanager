@@ -25,7 +25,10 @@ export function FolderHeader({ folder, count, expanded, onToggle, onRename, onDe
 
   return (
     <div className="flex items-center gap-1 px-1 py-1 group">
-      <button onClick={onToggle} className="text-[var(--color-text-muted)] text-xs w-8 h-8 flex items-center justify-center shrink-0">
+      {/* w-11 h-11 (44px) touch target via -m-1.5 hit-slop, same net footprint
+          (32px) as before so the row doesn't visually shift — consistency
+          pass with the crayon/✕ buttons on the right. */}
+      <button onClick={onToggle} className="text-[var(--color-text-muted)] text-xs w-11 h-11 -m-1.5 flex items-center justify-center shrink-0">
         {expanded ? '▾' : '▸'}
       </button>
       {editing ? (
